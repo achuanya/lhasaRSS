@@ -8,25 +8,34 @@ on:
 jobs:
   scheduler-rss:
     runs-on: ubuntu-latest
-    
+    env:
+      GO111MODULE: on
+      CGO_ENABLED: 0
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v4  # 升级到最新稳定版
 
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v5  # 升级到 v5 版
       with:
         go-version: '1.24'
-    
-    - name: Install dependencies
-      run: |
-        go mod tidy
-        go mod vendor
+        cache: true  # 启用依赖缓存
 
-    - name: Run go program with debug info
-      run: |
-        echo "Running go program..."
-        go run .
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/go/pkg/mod
+          $(go env GOMODCACHE)
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+
+    - name: Install dependencies
+      run: go mod tidy
+
+    - name: Build and Run
       env:
         TENCENT_CLOUD_SECRET_ID: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
         TENCENT_CLOUD_SECRET_KEY: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
@@ -38,3 +47,13 @@ jobs:
         RETRY_INTERVAL: 10s
         MAX_CONCURRENCY: 10
         HTTP_TIMEOUT: 15s
+      run: |
+        echo "=== 构建信息 ==="
+        go version
+        echo "GOPATH: $(go env GOPATH)"
+        echo "GOMODCACHE: $(go env GOMODCACHE)"
+        
+        echo "=== 启动程序 ==="
+        go run ./cmd  # 根据新目录结构调整路径
+
+
