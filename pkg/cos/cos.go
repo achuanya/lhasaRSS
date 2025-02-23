@@ -110,7 +110,7 @@ func SaveArticlesToCOS(
 
 	// data/rss_data.json 这个路径是示例，可根据需要修改
 	_, err = utils.WithRetry(ctx, cfg.MaxRetries, cfg.RetryInterval, func() (interface{}, error) {
-		resp, putErr := client.Object.Put(ctx, "data/rss_data.json", bytes.NewReader(jsonData), nil)
+		resp, putErr := client.Object.Put(ctx, "data/rss.json", bytes.NewReader(jsonData), nil)
 		if putErr != nil {
 			return nil, fmt.Errorf("COS 上传失败: %w", putErr)
 		}
