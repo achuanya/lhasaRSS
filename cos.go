@@ -13,7 +13,7 @@ import (
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
-// Article 抓取到的文章数据
+// Article 代表抓取到的文章
 type Article struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
@@ -28,6 +28,31 @@ type AvatarData struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
 	Avatar     string `json:"avatar"`
+}
+
+// initCOSClient 根据配置初始化一个 cos.Client
+// 注意：cos-go-sdk-v5 中，Client 的字段 client 是私有的，不能直接赋值或修改，
+// 只能在 NewClient(...) 时传入自定义 *http.Client。
+func initCOSClient(config *Config) *cos.Client {
+	u, _ := url.Parse(config.COSURL)
+	baseURL := &cos.BaseURL{BucketURL: u}
+
+	// 创建自定义 http.Client，用于 Transport、Timeout、鉴权等
+	httpClient := cos.NewClient(baseURL, nil) // 先创建一个空 client
+	// 重新构造
+	httpClient = cos.NewClient(
+		baseURL,
+		&cos.AuthorizationTransport{
+			SecretID:  config.SecretID,
+			SecretKey: config.SecretKey,
+			Transport: nil,
+		},
+	)
+
+	// 注意：如果你想自定义 Transport (e.g. IdleConnTimeout)
+	// 需要包装到 cos.AuthorizationTransport 里面，而不是直接访问私有字段
+
+	return httpClient
 }
 
 // fetchCOSFile 从 COS 中获取文件内容
@@ -83,29 +108,13 @@ func (p *RSSProcessor) saveToCOS(ctx context.Context, articles []Article) error 
 		if err != nil {
 			return nil, fmt.Errorf("COS 上传失败: %w", err)
 		}
-		defer resp.Body.Close()
+		_ = resp.Body.Close()
 		return nil, nil
 	})
-
 	if err != nil {
 		return fmt.Errorf("最终上传失败: %w", err)
 	}
 
 	// 不再记录成功日志
 	return nil
-}
-
-// initCOSClient 根据配置初始化一个 COS 客户端
-func initCOSClient(config *Config) *cos.Client {
-	u, _ := url.Parse(config.COSURL)
-	baseURL := &cos.BaseURL{BucketURL: u}
-
-	cosClient := cos.NewClient(baseURL, nil)
-	// 给 Transport 加上鉴权
-	cosClient.Client.Transport = &cos.AuthorizationTransport{
-		SecretID:  config.SecretID,
-		SecretKey: config.SecretKey,
-	}
-
-	return cosClient
 }

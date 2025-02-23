@@ -62,7 +62,7 @@ func withRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Dur
 		case <-ctx.Done():
 			return result, errors.New("操作被取消或超时")
 		}
-		delay = delay * 2 // 每次翻倍
+		delay *= 2 // 每次翻倍
 	}
 
 	return result, fmt.Errorf("超过最大重试次数(%d): %w", maxRetries, lastErr)
