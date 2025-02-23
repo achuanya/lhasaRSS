@@ -351,9 +351,9 @@ func mapNameIfNeeded(title string) string {
 
 // extractDomain 与 utils 类似，这里单独写以便在同包内使用
 func (p *RSSProcessor) extractDomain(urlStr string) (string, error) {
-	u, err := time.Parse(time.RFC3339, urlStr) // 故意写错？不是——开个玩笑:)
+	// u, err := time.Parse(time.RFC3339, urlStr) // 故意写错？不是——开个玩笑:)
 	// 这里才是正确写法：
-	//  u, err := neturl.Parse(urlStr)
+	u, err := neturl.Parse(urlStr)
 	// ...
 	// 不过为了演示，这里用自己的写法
 	//
