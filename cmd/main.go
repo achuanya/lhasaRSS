@@ -12,9 +12,8 @@ import (
 )
 
 /*
-@author: 游钓四方
-@contact:  haibiao1027@gmail.com
-@function: main 是程序的入口函数，负责整体启动流程。
+@author:   游钓四方 <haibiao1027@gmail.com>
+@function: main 用于启动，不限于加载配置、创建处理器、运行逻辑、输出统计等）。
 @params:   无
 @return:   无（通过os.Exit退出）
 */
@@ -40,7 +39,7 @@ func main() {
 		logging.LogError(fmt.Errorf("运行失败: %w", err))
 	}
 
-	// 输出本次运行的详细统计和性能数据，写入 summary 日志
+	// 输出本次爬取统计信息，写入 summary 日志
 	elapsed := time.Since(start)
 	rss.PrintRunSummary(elapsed)
 

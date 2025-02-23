@@ -9,22 +9,21 @@ import (
 )
 
 /*
-@author: 游钓四方
-@contact:  haibiao1027@gmail.com
-@function: Config 用于存放项目所有的可配置信息，通过环境变量注入。
+@author: 游钓四方 <haibiao1027@gmail.com>
+@function: Config 用于存放项目所有的可配置信息，通过环境变量注入
 */
 type Config struct {
-	SecretID         string
-	SecretKey        string
-	GithubToken      string
-	GithubName       string
-	GithubRepository string
-	COSRSS           string
-	MaxRetries       int
-	RetryInterval    time.Duration
-	MaxConcurrency   int
-	HTTPTimeout      time.Duration
-	DefaultAvatarURL string
+	SecretID         string        // 腾讯云秘钥ID
+	SecretKey        string        // 腾讯云秘钥Key
+	GithubToken      string        // GitHub Token
+	GithubName       string        // GitHub用户名
+	GithubRepository string        // GitHub仓库名
+	COSRSS           string        // 用于上传RSS
+	MaxRetries       int           // 重试次数
+	RetryInterval    time.Duration // 初始重试间隔
+	MaxConcurrency   int           // 并发量
+	HTTPTimeout      time.Duration // http 超时
+	DefaultAvatarURL string        // 默认头像URL（从env加载）
 	COSAvatar        string
 	COSFavoriteRSS   string
 	COSForeverBlog   string
@@ -35,11 +34,9 @@ type Config struct {
 var AppConfig *Config
 
 /*
-@author: 游钓四方
-@contact:  haibiao1027@gmail.com
-@function: LoadConfig 使用 viper 从环境变量加载所有配置信息
-@params:   无
-@return:   error 如果必填变量缺失则返回错误，否则nil
+@function: LoadConfig
+@description: 使用viper从环境变量中加载配置，并做必要的检查
+@return: error 如果必填项缺失则返回错误
 */
 func LoadConfig() error {
 	viper.AutomaticEnv()

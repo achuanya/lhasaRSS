@@ -11,7 +11,7 @@ import (
 )
 
 /*
-  日志系统说明：
+  日志系统：
   - 只记录错误到 error-YYYY-MM-DD.log
   - 记录汇总信息到 summary-YYYY-MM-DD.log
   - 每天 0 点时，自动切换新文件，并清理 7 天前的旧日志
@@ -27,7 +27,7 @@ var (
 	currentDate string
 )
 
-// init：启动两个日志worker协程
+// init：启动日志写协程
 func init() {
 	_ = os.MkdirAll("logs", 0755)
 
@@ -38,9 +38,8 @@ func init() {
 }
 
 /*
-@author: 游钓四方
-@contact:  haibiao1027@gmail.com
-@function: LogError 记录错误日志到 error-YYYY-MM-DD.log。带有文件、行号信息。
+@author: 游钓四方 <haibiao1027@gmail.com>
+@function: LogError 记录错误日志到 error-YYYY-MM-DD.log。带有文件、行号信息
 @params:   err error 要记录的错误
 @return:   无
 */
@@ -87,7 +86,7 @@ func summaryLogWorker() {
 	}
 }
 
-// ensureLogFile 确保今天的日志文件已打开，如果换日则切换
+// ensureLogFile 检查是否需要切换新的日志文件
 func ensureLogFile() {
 	today := time.Now().Format("2006-01-02")
 	if today == currentDate && errLogFile != nil && sumLogFile != nil {
@@ -166,7 +165,7 @@ func cleanupOldLogs() {
 	}
 }
 
-// CloseLogger 在程序退出前可调用
+// CloseLogger 可在main结束时调用，关闭通道和文件
 func CloseLogger() {
 	close(errorChan)
 	close(summaryChan)

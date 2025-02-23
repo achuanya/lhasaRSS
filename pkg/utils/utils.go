@@ -11,11 +11,11 @@ import (
 )
 
 /*
-  工具包说明：
+  工具包：
   - CleanXMLContent：去除无效字符
-  - ParseTime：按多种格式解析时间
+  - ParseTime：解析多种日期格式
   - FormatTime：格式化时间
-  - WithRetry：对函数进行指数退避重试
+  - WithRetry：指数退避算法
 */
 
 var timeFormats = []string{
@@ -26,10 +26,9 @@ var timeFormats = []string{
 }
 
 /*
-@author: 游钓四方
-@contact:  haibiao1027@gmail.com
+@author: 游钓四方 <haibiao1027@gmail.com>
 @function: CleanXMLContent 清理字符串中的不可见字符
-@params:   content string 原始内容
+@params:   content string 原始RSS内容
 @return:   string  清理后的内容
 */
 func CleanXMLContent(content string) string {
@@ -43,8 +42,8 @@ func CleanXMLContent(content string) string {
 @return:   time.Time, error
 */
 func ParseTime(timeStr string) (time.Time, error) {
-	for _, format := range timeFormats {
-		if t, err := time.Parse(format, timeStr); err == nil {
+	for _, fmtStr := range timeFormats {
+		if t, err := time.Parse(fmtStr, timeStr); err == nil {
 			return t, nil
 		}
 	}
@@ -52,7 +51,8 @@ func ParseTime(timeStr string) (time.Time, error) {
 }
 
 /*
-@function: FormatTime 以 "January 2, 2006" 的方式格式化时间
+@function: FormatTime
+@description: 将time.Time格式化为 "January 2, 2006"
 */
 func FormatTime(t time.Time) string {
 	return t.Format("January 2, 2006")
@@ -74,16 +74,11 @@ func FormatTime(t time.Time) string {
 
 	第 i 次重试失败后，等待 baseInterval * 2^(i-1) 的时长，再继续尝试。
 */
-func WithRetry[T any](
-	ctx context.Context,
-	maxRetries int,
-	baseInterval time.Duration,
-	fn func() (T, error),
-) (T, error) {
+func WithRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Duration, fn func() (T, error)) (T, error) {
 	var result T
 	var lastErr error
-
 	delay := baseInterval
+
 	for i := 1; i <= maxRetries; i++ {
 		result, lastErr = fn()
 		if lastErr == nil {
