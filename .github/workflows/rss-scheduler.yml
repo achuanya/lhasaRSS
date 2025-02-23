@@ -2,8 +2,8 @@ name: RSS Fetcher Scheduler
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时运行一次
-  workflow_dispatch:  # 允许手动触发
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   fetch-rss:
@@ -16,7 +16,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v3
       with:
-        go-version: '1.24'  # 可以根据需要调整 Go 版本
+        go-version: '1.24'
     
     - name: Install dependencies
       run: |
