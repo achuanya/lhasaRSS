@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"sort"
 	"time"
@@ -37,22 +38,32 @@ func initCOSClient(config *Config) *cos.Client {
 	u, _ := url.Parse(config.COSURL)
 	baseURL := &cos.BaseURL{BucketURL: u}
 
-	// 创建自定义 http.Client，用于 Transport、Timeout、鉴权等
-	httpClient := cos.NewClient(baseURL, nil) // 先创建一个空 client
-	// 重新构造
-	httpClient = cos.NewClient(
-		baseURL,
-		&cos.AuthorizationTransport{
-			SecretID:  config.SecretID,
-			SecretKey: config.SecretKey,
-			Transport: nil,
-		},
-	)
+	// 创建自定义的 Transport（空闲连接数、超时等）
+	customTransport := &http.Transport{
+		MaxIdleConns:        config.MaxConcurrency * 2,
+		IdleConnTimeout:     90 * time.Second,
+		DisableCompression:  false,
+		MaxConnsPerHost:     config.MaxConcurrency,
+		MaxIdleConnsPerHost: config.MaxConcurrency,
+	}
 
-	// 注意：如果你想自定义 Transport (e.g. IdleConnTimeout)
-	// 需要包装到 cos.AuthorizationTransport 里面，而不是直接访问私有字段
+	// 再用 cos.AuthorizationTransport 包裹，自带鉴权
+	authTransport := &cos.AuthorizationTransport{
+		SecretID:  config.SecretID,
+		SecretKey: config.SecretKey,
+		Transport: customTransport, // Transport 自定义封装
+	}
 
-	return httpClient
+	// 用 authTransport 作为 RoundTripper，构造一个 http.Client
+	httpClient := &http.Client{
+		Transport: authTransport,
+		Timeout:   config.HTTPTimeout,
+	}
+
+	// 把封装好的 httpClient 传给 cos.NewClient
+	cosClient := cos.NewClient(baseURL, httpClient)
+
+	return cosClient
 }
 
 // fetchCOSFile 从 COS 中获取文件内容
