@@ -30,10 +30,10 @@ jobs:
       env:
         TENCENT_CLOUD_SECRET_ID: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
         TENCENT_CLOUD_SECRET_KEY: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
+        COSURL: ${{ secrets.TENCENT_CLOUD_COS_URL }}
         TOKEN: ${{ secrets.TOKEN }}
         NAME: ${{ secrets.NAME }}
         REPOSITORY: ${{ secrets.REPOSITORY }}
-        COSURL: ${{ secrets.COSURL }}
         MAX_RETRIES: 3
         RETRY_INTERVAL: 10s
         MAX_CONCURRENCY: 10

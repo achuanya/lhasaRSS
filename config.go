@@ -27,9 +27,8 @@ var AppConfig *Config
 
 // LoadConfig 使用 viper 从环境变量加载配置
 func LoadConfig() error {
-	// viper 基本设置
-	viper.AutomaticEnv() // 允许从环境变量中读取
-
+	// 允许从环境变量中读取
+	viper.AutomaticEnv()
 	viper.SetDefault("MAX_RETRIES", 3)
 	viper.SetDefault("RETRY_INTERVAL", 10*time.Second)
 	viper.SetDefault("MAX_CONCURRENCY", 10)
@@ -39,10 +38,10 @@ func LoadConfig() error {
 	config := &Config{
 		SecretID:         viper.GetString("TENCENT_CLOUD_SECRET_ID"),
 		SecretKey:        viper.GetString("TENCENT_CLOUD_SECRET_KEY"),
+		COSURL:           viper.GetString("TENCENT_CLOUD_COS_URL"),
 		GithubToken:      viper.GetString("TOKEN"),
 		GithubName:       viper.GetString("NAME"),
 		GithubRepository: viper.GetString("REPOSITORY"),
-		COSURL:           viper.GetString("COSURL"),
 	}
 
 	// 处理 int / duration 类型
@@ -51,7 +50,8 @@ func LoadConfig() error {
 	config.MaxConcurrency = getEnvInt("MAX_CONCURRENCY", 10)
 	config.HTTPTimeout = getEnvDuration("HTTP_TIMEOUT", 15*time.Second)
 
-	// 验证必需配置是否存在
+	// 数据验证
+	// 如果用于 COS 或 GitHubToken 可以忽略
 	requiredEnv := map[string]string{
 		"TENCENT_CLOUD_SECRET_ID":  config.SecretID,
 		"TENCENT_CLOUD_SECRET_KEY": config.SecretKey,
