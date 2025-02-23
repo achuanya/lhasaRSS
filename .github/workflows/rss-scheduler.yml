@@ -25,7 +25,7 @@ jobs:
 
     - name: Run RSS Scheduler
       run: |
-        go run main.go
+        go run .
       env:
         TENCENT_CLOUD_SECRET_ID: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
         TENCENT_CLOUD_SECRET_KEY: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
