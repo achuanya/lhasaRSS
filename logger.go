@@ -19,7 +19,7 @@ func init() {
 	go rotateLogDaily()
 }
 
-// LogError 将错误信息（或需要记录为错误的消息）发送到异步通道
+// LogError 将错误信息发送到异步通道
 // 统一在这里加上中文前缀、时间戳等
 func LogError(err error) {
 	if err == nil {
@@ -36,7 +36,6 @@ func errorLogWorker() {
 	// 首次启动时，尝试以追加方式打开（若不存在则创建）
 	logFile, err = os.OpenFile("error.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		// 如果连日志文件都打开失败，就只能打印到控制台了
 		fmt.Println("无法打开或创建 error.log 文件：", err)
 		return
 	}
@@ -79,7 +78,6 @@ func getBeijingTime() time.Time {
 }
 
 // CloseLogger 可以在 main 退出前调用，保证通道被关闭，worker 协程退出。
-// 如果你希望优雅关闭日志，调用此方法即可（示例中可选）。
 func CloseLogger() {
 	close(errorChan)
 	logMu.Lock()

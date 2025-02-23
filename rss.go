@@ -20,12 +20,12 @@ import (
 type RSSProcessor struct {
 	config     *Config
 	httpClient *http.Client
-	cosClient  *COSClientWrapper // 封装后的 COS 客户端，或直接用 cos.Client 也可
+	cosClient  *COSClientWrapper // 封装后的 COS 客户端
 	parser     *gofeed.Parser
 	avatarMap  map[string]string
 }
 
-// COSClientWrapper 这里简单包一下，如果需要更多自定义，可扩展
+// COSClientWrapper 这里简单包一下，可扩展
 type COSClientWrapper struct {
 	inner *http.Client
 }
@@ -203,7 +203,7 @@ func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (Article
 		return Article{}, fmt.Errorf("获取源失败 (%s): %w", feedURL, err)
 	}
 
-	// 2) 解析 RSS
+	// 解析 RSS
 	parsedFeed, err := withRetry(ctx, p.config.MaxRetries, p.config.RetryInterval, func() (*gofeed.Feed, error) {
 		return p.parser.ParseString(body)
 	})
@@ -211,10 +211,10 @@ func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (Article
 		return Article{}, fmt.Errorf("解析源失败 (%s): %w", feedURL, err)
 	}
 
-	// 3) 域名 / 头像处理
+	// 域名 or 头像处理
 	domain, err := extractDomain(parsedFeed.Link)
 	if err != nil {
-		// 域名解析失败，也不放弃，暂用 unknown
+		// 域名解析失败，暂用 unknown
 		domain = "unknown"
 	}
 
@@ -223,13 +223,13 @@ func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (Article
 		avatarURL = "https://cos.lhasa.icu/LinksAvatar/default.png"
 	}
 
-	// 4) 取最新一篇文章
+	// 取最新一篇文章
 	if len(parsedFeed.Items) == 0 {
 		return Article{}, fmt.Errorf("没有找到任何文章 (%s)", feedURL)
 	}
 	item := parsedFeed.Items[0]
 
-	// 尝试解析发布时间，若失败再看 updated
+	// 尝试解析发布时间，失败则 updated
 	publishedTime, err := parseTime(item.Published)
 	if err != nil && item.Updated != "" {
 		publishedTime, err = parseTime(item.Updated)
@@ -238,7 +238,7 @@ func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (Article
 		return Article{}, fmt.Errorf("时间解析失败 (%s)", feedURL)
 	}
 
-	// 5) 有些标题中需要手动映射
+	// 标题过长，手动映射
 	name := mapNameIfNeeded(parsedFeed.Title)
 
 	return Article{

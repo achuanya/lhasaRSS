@@ -13,7 +13,7 @@ import (
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
-// Article 代表抓取到的文章
+// Article 抓取到的文章数据
 type Article struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
@@ -101,7 +101,7 @@ func initCOSClient(config *Config) *cos.Client {
 	baseURL := &cos.BaseURL{BucketURL: u}
 
 	cosClient := cos.NewClient(baseURL, nil)
-	// 这里给 Transport 加上鉴权
+	// 给 Transport 加上鉴权
 	cosClient.Client.Transport = &cos.AuthorizationTransport{
 		SecretID:  config.SecretID,
 		SecretKey: config.SecretKey,

@@ -1,0 +1,39 @@
+name: RSS Fetcher Scheduler
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # 每6小时运行一次
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  fetch-rss:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.20'  # 可以根据需要调整 Go 版本
+    
+    - name: Install dependencies
+      run: |
+        go mod tidy
+        go mod vendor
+
+    - name: Run RSS Fetcher
+      run: |
+        go run main.go
+      env:
+        TENCENT_CLOUD_SECRET_ID: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
+        TENCENT_CLOUD_SECRET_KEY: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
+        TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NAME: ${{ secrets.GITHUB_NAME }}
+        REPOSITORY: ${{ secrets.GITHUB_REPOSITORY }}
+        COSURL: ${{ secrets.COSURL }}
+        MAX_RETRIES: 3
+        RETRY_INTERVAL: 10s
+        MAX_CONCURRENCY: 10
+        HTTP_TIMEOUT: 15s

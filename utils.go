@@ -53,7 +53,7 @@ func withRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Dur
 			return result, nil
 		}
 
-		// 记录重试日志（此示例中只记录在本地 error.log，不区分 INFO/WARN）
+		// 记录重试日志 error.log
 		LogError(fmt.Errorf("第 %d/%d 次重试失败：%v", i, maxRetries, lastErr))
 
 		// 指数退避

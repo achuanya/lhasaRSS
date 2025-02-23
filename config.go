@@ -25,7 +25,7 @@ type Config struct {
 // 全局配置实例，仅加载一次
 var AppConfig *Config
 
-// 使用 viper 从环境变量加载配置
+// LoadConfig 使用 viper 从环境变量加载配置
 func LoadConfig() error {
 	// viper 基本设置
 	viper.AutomaticEnv() // 允许从环境变量中读取
@@ -52,7 +52,6 @@ func LoadConfig() error {
 	config.HTTPTimeout = getEnvDuration("HTTP_TIMEOUT", 15*time.Second)
 
 	// 验证必需配置是否存在
-	// 如果仅 COS 相关功能，实际上 GitHubToken 等可以不是必需，这里按原逻辑保留
 	requiredEnv := map[string]string{
 		"TENCENT_CLOUD_SECRET_ID":  config.SecretID,
 		"TENCENT_CLOUD_SECRET_KEY": config.SecretKey,
@@ -71,7 +70,7 @@ func LoadConfig() error {
 	return nil
 }
 
-// getEnvInt 辅助函数，从环境变量（viper）读取 int
+// getEnvInt 从 viper 读取 int
 func getEnvInt(key string, defaultValue int) int {
 	valStr := viper.GetString(key)
 	if valStr == "" {
@@ -83,7 +82,7 @@ func getEnvInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-// getEnvDuration 从环境变量（viper）读取 time.Duration
+// getEnvDuration 从 viper 读取 time.Duration
 func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	valStr := viper.GetString(key)
 	if valStr == "" {
