@@ -55,10 +55,10 @@ func LoadConfig() error {
 	requiredEnv := map[string]string{
 		"TENCENT_CLOUD_SECRET_ID":  config.SecretID,
 		"TENCENT_CLOUD_SECRET_KEY": config.SecretKey,
+		"TENCENT_CLOUD_COS_URL":    config.COSURL,
 		"TOKEN":                    config.GithubToken,
 		"NAME":                     config.GithubName,
 		"REPOSITORY":               config.GithubRepository,
-		"COSURL":                   config.COSURL,
 	}
 	for k, v := range requiredEnv {
 		if v == "" {

@@ -14,7 +14,7 @@ import (
 	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
-// Article 代表抓取到的文章
+// Article 抓取到的文章
 type Article struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
@@ -24,7 +24,7 @@ type Article struct {
 	Avatar     string `json:"avatar"`
 }
 
-// AvatarData 代表存储在 COS 上的头像信息
+// AvatarData 存储在 COS 上的头像信息
 type AvatarData struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
@@ -33,7 +33,7 @@ type AvatarData struct {
 
 // initCOSClient 根据配置初始化一个 cos.Client
 // 注意：cos-go-sdk-v5 中，Client 的字段 client 是私有的，不能直接赋值或修改，
-// 只能在 NewClient(...) 时传入自定义 *http.Client。
+// 只能在 NewClient() 时传入自定义 *http.Client。
 func initCOSClient(config *Config) *cos.Client {
 	u, _ := url.Parse(config.COSURL)
 	baseURL := &cos.BaseURL{BucketURL: u}
@@ -126,6 +126,5 @@ func (p *RSSProcessor) saveToCOS(ctx context.Context, articles []Article) error 
 		return fmt.Errorf("最终上传失败: %w", err)
 	}
 
-	// 不再记录成功日志
 	return nil
 }
