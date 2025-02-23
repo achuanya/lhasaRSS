@@ -38,7 +38,7 @@ func LoadConfig() error {
 	config := &Config{
 		SecretID:         viper.GetString("TENCENT_CLOUD_SECRET_ID"),
 		SecretKey:        viper.GetString("TENCENT_CLOUD_SECRET_KEY"),
-		COSURL:           viper.GetString("TENCENT_CLOUD_COS_URL"),
+		COSURL:           viper.GetString("COSURL"),
 		GithubToken:      viper.GetString("TOKEN"),
 		GithubName:       viper.GetString("NAME"),
 		GithubRepository: viper.GetString("REPOSITORY"),
@@ -55,7 +55,7 @@ func LoadConfig() error {
 	requiredEnv := map[string]string{
 		"TENCENT_CLOUD_SECRET_ID":  config.SecretID,
 		"TENCENT_CLOUD_SECRET_KEY": config.SecretKey,
-		"TENCENT_CLOUD_COS_URL":    config.COSURL,
+		"COSURL":    				config.COSURL,
 		"TOKEN":                    config.GithubToken,
 		"NAME":                     config.GithubName,
 		"REPOSITORY":               config.GithubRepository,
