@@ -23,8 +23,9 @@ jobs:
         go mod tidy
         go mod vendor
 
-    - name: Run RSS Scheduler
+    - name: Run go program with debug info
       run: |
+        echo "Running go program..."
         go run .
       env:
         TENCENT_CLOUD_SECRET_ID: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
