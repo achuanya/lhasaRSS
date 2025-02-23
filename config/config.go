@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -20,14 +20,15 @@ type Config struct {
 	RetryInterval    time.Duration
 	MaxConcurrency   int
 	HTTPTimeout      time.Duration
+	DefaultAvatarURL string
 }
 
-// 全局配置实例，仅加载一次
+// 全局配置实例
 var AppConfig *Config
 
 // LoadConfig 使用 viper 从环境变量加载配置
 func LoadConfig() error {
-	viper.AutomaticEnv() // 优先从环境变量读取
+	viper.AutomaticEnv()
 
 	viper.SetDefault("MAX_RETRIES", 3)
 	viper.SetDefault("RETRY_INTERVAL", 10*time.Second)
@@ -35,38 +36,40 @@ func LoadConfig() error {
 	viper.SetDefault("HTTP_TIMEOUT", 15*time.Second)
 
 	// 将 Github Actions 环境变量读到本地
-	config := &Config{
+	cfg := &Config{
 		SecretID:         viper.GetString("TENCENT_CLOUD_SECRET_ID"),
 		SecretKey:        viper.GetString("TENCENT_CLOUD_SECRET_KEY"),
 		COSURL:           viper.GetString("COSURL"),
+		DefaultAvatarURL: viper.GetString("DEFAULT_AVATAR_URL"),
 		GithubToken:      viper.GetString("TOKEN"),
 		GithubName:       viper.GetString("NAME"),
 		GithubRepository: viper.GetString("REPOSITORY"),
 	}
 
 	// 处理 int / duration 类型
-	config.MaxRetries = getEnvInt("MAX_RETRIES", 3)
-	config.RetryInterval = getEnvDuration("RETRY_INTERVAL", 10*time.Second)
-	config.MaxConcurrency = getEnvInt("MAX_CONCURRENCY", 10)
-	config.HTTPTimeout = getEnvDuration("HTTP_TIMEOUT", 15*time.Second)
+	cfg.MaxRetries = getEnvInt("MAX_RETRIES", 3)
+	cfg.RetryInterval = getEnvDuration("RETRY_INTERVAL", 10*time.Second)
+	cfg.MaxConcurrency = getEnvInt("MAX_CONCURRENCY", 10)
+	cfg.HTTPTimeout = getEnvDuration("HTTP_TIMEOUT", 15*time.Second)
 
 	// 数据验证
 	// 如果用于 COS 或 GitHubToken 可以忽略
-	requiredEnv := map[string]string{
-		"TENCENT_CLOUD_SECRET_ID":  config.SecretID,
-		"TENCENT_CLOUD_SECRET_KEY": config.SecretKey,
-		"COSURL":                   config.COSURL,
-		"TOKEN":                    config.GithubToken,
-		"NAME":                     config.GithubName,
-		"REPOSITORY":               config.GithubRepository,
+	required := map[string]string{
+		"TENCENT_CLOUD_SECRET_ID":  cfg.SecretID,
+		"TENCENT_CLOUD_SECRET_KEY": cfg.SecretKey,
+		"COSURL":                   cfg.COSURL,
+		"DEFAULT_AVATAR_URL":       cfg.DefaultAvatarURL,
+		"TOKEN":                    cfg.GithubToken,
+		"NAME":                     cfg.GithubName,
+		"REPOSITORY":               cfg.GithubRepository,
 	}
-	for k, v := range requiredEnv {
+	for k, v := range required {
 		if v == "" {
 			return fmt.Errorf("环境变量 %s 必须设置", k)
 		}
 	}
 
-	AppConfig = config
+	AppConfig = cfg
 	return nil
 }
 

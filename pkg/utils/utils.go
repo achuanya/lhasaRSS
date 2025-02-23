@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"time"
+
+	"lhasaRSS/logging"
 )
 
 var timeFormats = []string{
@@ -15,14 +17,13 @@ var timeFormats = []string{
 	time.RFC1123,
 }
 
-// cleanXMLContent 清理无效字符
-func cleanXMLContent(content string) string {
+// Clean XML
+func CleanXMLContent(content string) string {
 	re := regexp.MustCompile(`[\x00-\x1F\x7F-\x9F]`)
 	return re.ReplaceAllString(content, "")
 }
 
-// parseTime 尝试按多种格式解析时间
-func parseTime(timeStr string) (time.Time, error) {
+func ParseTime(timeStr string) (time.Time, error) {
 	for _, format := range timeFormats {
 		if t, err := time.Parse(format, timeStr); err == nil {
 			return t, nil
@@ -31,27 +32,25 @@ func parseTime(timeStr string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("无法解析时间: %s", timeStr)
 }
 
-// formatTime 格式化文章时间
-func formatTime(t time.Time) string {
+func FormatTime(t time.Time) string {
 	return t.Format("January 2, 2006")
 }
 
-// withRetry 使用指数退避算法进行重试
+// withRetry 使用 指数退避算法 进行重试
 // maxRetries: 最大重试次数
 // baseInterval: 初始等待间隔
 // fn: 需要执行的函数
-func withRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Duration, fn func() (T, error)) (T, error) {
+func WithRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Duration, fn func() (T, error)) (T, error) {
 	var result T
 	var lastErr error
-
 	delay := baseInterval
+
 	for i := 1; i <= maxRetries; i++ {
 		result, lastErr = fn()
 		if lastErr == nil {
 			return result, nil
 		}
-
-		LogError(fmt.Errorf("第 %d/%d 次重试失败: %v", i, maxRetries, lastErr))
+		logging.LogError(fmt.Errorf("第 %d/%d 次重试失败: %v", i, maxRetries, lastErr))
 
 		select {
 		case <-time.After(delay):
@@ -60,6 +59,5 @@ func withRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Dur
 		}
 		delay *= 2
 	}
-
 	return result, fmt.Errorf("超过最大重试次数(%d): %w", maxRetries, lastErr)
 }
