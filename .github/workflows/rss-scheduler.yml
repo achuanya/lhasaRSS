@@ -1,4 +1,4 @@
-name: RSS Fetcher Scheduler
+name: RSS Scheduler
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  fetch-rss:
+  scheduler-rss:
     runs-on: ubuntu-latest
     
     steps:
@@ -23,7 +23,7 @@ jobs:
         go mod tidy
         go mod vendor
 
-    - name: Run RSS Fetcher
+    - name: Run RSS Scheduler
       run: |
         go run main.go
       env:
