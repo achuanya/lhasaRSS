@@ -31,14 +31,14 @@ type AvatarData struct {
 	Avatar     string `json:"avatar"`
 }
 
-// initCOSClient 根据配置初始化一个 cos.Client
-// 注意：cos-go-sdk-v5 中，Client 的字段 client 是私有的，不能直接赋值或修改，
+// initCOSClient 创建并返回 *cos.Client
+// 注意：在 cos-go-sdk-v5 中，Client 的字段 client 是私有的，不能直接赋值或修改
 // 只能在 NewClient() 时传入自定义 *http.Client。
 func initCOSClient(config *Config) *cos.Client {
 	u, _ := url.Parse(config.COSURL)
 	baseURL := &cos.BaseURL{BucketURL: u}
 
-	// 创建自定义的 Transport（空闲连接数、超时等）
+	// 自定义 Transport
 	customTransport := &http.Transport{
 		MaxIdleConns:        config.MaxConcurrency * 2,
 		IdleConnTimeout:     90 * time.Second,
@@ -51,19 +51,16 @@ func initCOSClient(config *Config) *cos.Client {
 	authTransport := &cos.AuthorizationTransport{
 		SecretID:  config.SecretID,
 		SecretKey: config.SecretKey,
-		Transport: customTransport, // Transport 自定义封装
+		Transport: customTransport,
 	}
 
-	// 用 authTransport 作为 RoundTripper，构造一个 http.Client
+	// 用封装的 RoundTripper 构造一个 http.Client，设置全局超时
 	httpClient := &http.Client{
 		Transport: authTransport,
 		Timeout:   config.HTTPTimeout,
 	}
 
-	// 把封装好的 httpClient 传给 cos.NewClient
-	cosClient := cos.NewClient(baseURL, httpClient)
-
-	return cosClient
+	return cos.NewClient(baseURL, httpClient)
 }
 
 // fetchCOSFile 从 COS 中获取文件内容
@@ -83,7 +80,7 @@ func (p *RSSProcessor) fetchCOSFile(ctx context.Context, path string) (string, e
 
 // saveToCOS 将文章数据保存到 COS
 func (p *RSSProcessor) saveToCOS(ctx context.Context, articles []Article) error {
-	// 十年之约，手动插入一条文章
+	// 十年之约
 	articles = append(articles, Article{
 		DomainName: "https://foreverblog.cn",
 		Name:       "十年之约",
@@ -127,4 +124,19 @@ func (p *RSSProcessor) saveToCOS(ctx context.Context, articles []Article) error 
 	}
 
 	return nil
+}
+
+// fetchCOSFile 从 COS 读取文本内容
+func (p *RSSProcessor) fetchCOSFile(ctx context.Context, path string) (string, error) {
+	resp, err := p.cosClient.Object.Get(ctx, path, nil)
+	if err != nil {
+		return "", fmt.Errorf("获取 COS 文件失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("读取 COS 内容失败: %w", err)
+	}
+	return string(data), nil
 }

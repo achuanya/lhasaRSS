@@ -27,8 +27,8 @@ var AppConfig *Config
 
 // LoadConfig 使用 viper 从环境变量加载配置
 func LoadConfig() error {
-	// 允许从环境变量中读取
-	viper.AutomaticEnv()
+	viper.AutomaticEnv() // 优先从环境变量读取
+
 	viper.SetDefault("MAX_RETRIES", 3)
 	viper.SetDefault("RETRY_INTERVAL", 10*time.Second)
 	viper.SetDefault("MAX_CONCURRENCY", 10)
@@ -55,7 +55,7 @@ func LoadConfig() error {
 	requiredEnv := map[string]string{
 		"TENCENT_CLOUD_SECRET_ID":  config.SecretID,
 		"TENCENT_CLOUD_SECRET_KEY": config.SecretKey,
-		"COSURL":    				config.COSURL,
+		"COSURL":                   config.COSURL,
 		"TOKEN":                    config.GithubToken,
 		"NAME":                     config.GithubName,
 		"REPOSITORY":               config.GithubRepository,

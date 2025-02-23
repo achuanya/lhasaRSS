@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// timeFormats 用于解析时间的预设格式
 var timeFormats = []string{
 	time.RFC3339,
 	time.RFC3339Nano,
@@ -32,13 +31,12 @@ func parseTime(timeStr string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("无法解析时间: %s", timeStr)
 }
 
-// formatTime 用于最终格式化输出
+// formatTime 格式化文章时间
 func formatTime(t time.Time) string {
-	// 例如：January 2, 2006
 	return t.Format("January 2, 2006")
 }
 
-// withRetry 使用指数退避策略进行重试
+// withRetry 使用指数退避算法进行重试
 // maxRetries: 最大重试次数
 // baseInterval: 初始等待间隔
 // fn: 需要执行的函数
@@ -53,16 +51,14 @@ func withRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Dur
 			return result, nil
 		}
 
-		// 记录重试日志 error.log
-		LogError(fmt.Errorf("第 %d/%d 次重试失败：%v", i, maxRetries, lastErr))
+		LogError(fmt.Errorf("第 %d/%d 次重试失败: %v", i, maxRetries, lastErr))
 
-		// 指数退避
 		select {
 		case <-time.After(delay):
 		case <-ctx.Done():
 			return result, errors.New("操作被取消或超时")
 		}
-		delay *= 2 // 每次翻倍
+		delay *= 2
 	}
 
 	return result, fmt.Errorf("超过最大重试次数(%d): %w", maxRetries, lastErr)
