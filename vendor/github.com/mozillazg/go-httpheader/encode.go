@@ -1,4 +1,4 @@
-// Package httpheader implements encoding of structs into http.Header fields.
+// Package query implements encoding of structs into http.Header fields.
 //
 // As a simple example:
 //
@@ -29,7 +29,7 @@ import (
 const tagName = "header"
 
 // Version ...
-const Version = "0.3.1"
+const Version = "0.2.1"
 
 var timeType = reflect.TypeOf(time.Time{})
 var headerType = reflect.TypeOf(http.Header{})
@@ -200,9 +200,7 @@ func reflectValue(header http.Header, val reflect.Value) error {
 		}
 
 		if sv.Kind() == reflect.Struct {
-			if err := reflectValue(header, sv); err != nil {
-				return err
-			}
+			reflectValue(header, sv)
 			continue
 		}
 
@@ -289,9 +287,4 @@ func (o tagOptions) Contains(option string) bool {
 		}
 	}
 	return false
-}
-
-// Encode is an alias of Header function
-func Encode(v interface{}) (http.Header, error) {
-	return Header(v)
 }
