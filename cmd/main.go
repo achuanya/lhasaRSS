@@ -11,6 +11,13 @@ import (
 	"lhasaRSS/pkg/rss"
 )
 
+/*
+@author: 游钓四方
+@contact:  haibiao1027@gmail.com
+@function: main 是程序的入口函数，负责整体启动流程。
+@params:   无
+@return:   无（通过os.Exit退出）
+*/
 func main() {
 	// 加载配置
 	if err := config.LoadConfig(); err != nil {
@@ -25,7 +32,7 @@ func main() {
 	// 记录开始时间，用于统计耗时
 	start := time.Now()
 
-	// 设置全局超时
+	// 设置全局超时上下文（3分钟）
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 
@@ -37,6 +44,6 @@ func main() {
 	elapsed := time.Since(start)
 	rss.PrintRunSummary(elapsed)
 
-	// 关闭日志
+	// 关闭日志文件
 	// logging.CloseLogger()
 }

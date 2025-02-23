@@ -10,6 +10,14 @@ import (
 	"lhasaRSS/logging"
 )
 
+/*
+  工具包说明：
+  - CleanXMLContent：去除无效字符
+  - ParseTime：按多种格式解析时间
+  - FormatTime：格式化时间
+  - WithRetry：对函数进行指数退避重试
+*/
+
 var timeFormats = []string{
 	time.RFC3339,
 	time.RFC3339Nano,
@@ -17,12 +25,23 @@ var timeFormats = []string{
 	time.RFC1123,
 }
 
-// Clean XML
+/*
+@author: 游钓四方
+@contact:  haibiao1027@gmail.com
+@function: CleanXMLContent 清理字符串中的不可见字符
+@params:   content string 原始内容
+@return:   string  清理后的内容
+*/
 func CleanXMLContent(content string) string {
 	re := regexp.MustCompile(`[\x00-\x1F\x7F-\x9F]`)
 	return re.ReplaceAllString(content, "")
 }
 
+/*
+@function: ParseTime 依次尝试多种格式解析时间字符串
+@params:   timeStr string
+@return:   time.Time, error
+*/
 func ParseTime(timeStr string) (time.Time, error) {
 	for _, format := range timeFormats {
 		if t, err := time.Parse(format, timeStr); err == nil {
@@ -32,19 +51,39 @@ func ParseTime(timeStr string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("无法解析时间: %s", timeStr)
 }
 
+/*
+@function: FormatTime 以 "January 2, 2006" 的方式格式化时间
+*/
 func FormatTime(t time.Time) string {
 	return t.Format("January 2, 2006")
 }
 
-// withRetry 使用 指数退避算法 进行重试
-// maxRetries: 最大重试次数
-// baseInterval: 初始等待间隔
-// fn: 需要执行的函数
-func WithRetry[T any](ctx context.Context, maxRetries int, baseInterval time.Duration, fn func() (T, error)) (T, error) {
+/*
+@function: WithRetry 使用指数退避策略对 fn 进行重试
+@params:
+  - ctx: 上下文
+  - maxRetries: 最大重试次数
+  - baseInterval: 初始等待间隔
+  - fn: 需要执行的函数
+
+@return:
+  - T: fn 的返回结果
+  - error: 最终失败错误
+
+@explanation:
+
+	第 i 次重试失败后，等待 baseInterval * 2^(i-1) 的时长，再继续尝试。
+*/
+func WithRetry[T any](
+	ctx context.Context,
+	maxRetries int,
+	baseInterval time.Duration,
+	fn func() (T, error),
+) (T, error) {
 	var result T
 	var lastErr error
-	delay := baseInterval
 
+	delay := baseInterval
 	for i := 1; i <= maxRetries; i++ {
 		result, lastErr = fn()
 		if lastErr == nil {

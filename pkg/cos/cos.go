@@ -5,19 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"sort"
 	"time"
 
 	"lhasaRSS/config"
 	"lhasaRSS/pkg/utils"
 
-	"github.com/tencentyun/cos-go-sdk-v5"
+	gocos "github.com/tencentyun/cos-go-sdk-v5"
 )
 
-// Article RSS 抓取到的文章
+/*
+@function: Article / AvatarData / ForeverData 是与 COS 交互时的JSON数据结构
+*/
 type Article struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
@@ -27,14 +27,12 @@ type Article struct {
 	Avatar     string `json:"avatar"`
 }
 
-// AvatarData 存储在 COS 上的头像信息
 type AvatarData struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
 	Avatar     string `json:"avatar"`
 }
 
-// ForeverData “十年之约”额外数据结构（可扩展）
 type ForeverData struct {
 	DomainName string `json:"domainName"`
 	Name       string `json:"name"`
@@ -44,10 +42,21 @@ type ForeverData struct {
 	Avatar     string `json:"avatar"`
 }
 
-// InitCOSClient 根据配置创建一个 *cos.Client
-func InitCOSClient(cfg *config.Config) *cos.Client {
-	u, _ := url.Parse(cfg.COSURL)
-	baseURL := &cos.BaseURL{BucketURL: u}
+/*
+@author:
+
+	游钓四方 <haibiao1027@gmail.com>
+
+@function: InitCOSClient 根据 cfg.COSRSS 里的 BucketURL 创建一个腾讯云 COS 客户端，用于上传 rss_data.json。
+@params:
+  - cfg *config.Config
+
+@return:
+  - *gocos.Client  成功初始化后的 COS 客户端
+*/
+func InitCOSClient(cfg *config.Config) *gocos.Client {
+	u, _ := url.Parse(cfg.COSRSS) // COS_RSS
+	baseURL := &gocos.BaseURL{BucketURL: u}
 
 	// 自定义 Transport
 	customTransport := &http.Transport{
@@ -58,7 +67,7 @@ func InitCOSClient(cfg *config.Config) *cos.Client {
 		MaxIdleConnsPerHost: cfg.MaxConcurrency,
 	}
 
-	authTransport := &cos.AuthorizationTransport{
+	authTransport := &gocos.AuthorizationTransport{
 		SecretID:  cfg.SecretID,
 		SecretKey: cfg.SecretKey,
 		Transport: customTransport,
@@ -69,51 +78,41 @@ func InitCOSClient(cfg *config.Config) *cos.Client {
 		Timeout:   cfg.HTTPTimeout,
 	}
 
-	return cos.NewClient(baseURL, httpClient)
+	return gocos.NewClient(baseURL, httpClient)
 }
 
-// FetchCOSFile 从 COS 读取文本文件并返回字符串
-func FetchCOSFile(ctx context.Context, client *cos.Client, path string) (string, error) {
-	resp, err := client.Object.Get(ctx, path, nil)
-	if err != nil {
-		return "", fmt.Errorf("获取 COS 文件失败: %w", err)
-	}
-	defer resp.Body.Close()
+/*
+@function: SaveArticlesToCOS 将最终的 articles 列表序列化成 JSON，上传到 COS (data/rss_data.json)
+@params:
+  - ctx context.Context
+  - cfg *config.Config
+  - client *gocos.Client
+  - articles []Article
 
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("读取 COS 内容失败: %w", err)
-	}
-	return string(data), nil
-}
+@return:
+  - error
 
-// SaveArticlesToCOS 将文章列表保存到 COS 的 data/rss_data.json
-// 同时可添加其他逻辑（比如插入特殊数据）
-func SaveArticlesToCOS(ctx context.Context, cfg *config.Config, client *cos.Client, articles []Article) error {
-	// 对文章进行排序
-	sort.Slice(articles, func(i, j int) bool {
-		t1, err1 := time.Parse("January 2, 2006", articles[i].Date)
-		t2, err2 := time.Parse("January 2, 2006", articles[j].Date)
-		if err1 != nil {
-			t1 = time.Time{}
-		}
-		if err2 != nil {
-			t2 = time.Time{}
-		}
-		return t1.After(t2)
-	})
+@description:
 
-	// JSON 序列化
+	调用 withRetry 对上传进行重试
+*/
+func SaveArticlesToCOS(
+	ctx context.Context,
+	cfg *config.Config,
+	client *gocos.Client,
+	articles []Article,
+) error {
+	// 这里不做排序，排序留给调用者决定也可。你若要按时间逆序，可自行 sort。
 	jsonData, err := json.Marshal(articles)
 	if err != nil {
 		return fmt.Errorf("JSON 序列化失败: %w", err)
 	}
 
-	// 带重试上传
+	// data/rss_data.json 这个路径是示例，可根据需要修改
 	_, err = utils.WithRetry(ctx, cfg.MaxRetries, cfg.RetryInterval, func() (interface{}, error) {
-		resp, err := client.Object.Put(ctx, "data/rss_data.json", bytes.NewReader(jsonData), nil)
-		if err != nil {
-			return nil, fmt.Errorf("COS 上传失败: %w", err)
+		resp, putErr := client.Object.Put(ctx, "data/rss_data.json", bytes.NewReader(jsonData), nil)
+		if putErr != nil {
+			return nil, fmt.Errorf("COS 上传失败: %w", putErr)
 		}
 		_ = resp.Body.Close()
 		return nil, nil
@@ -122,18 +121,4 @@ func SaveArticlesToCOS(ctx context.Context, cfg *config.Config, client *cos.Clie
 		return fmt.Errorf("最终上传失败: %w", err)
 	}
 	return nil
-}
-
-// LoadForeverBlogData 加载固定数据
-func LoadForeverBlogData(ctx context.Context, cfg *config.Config, client *cos.Client) (*ForeverData, error) {
-	// 这里假设放在 COS 的 data/foreverblog.json
-	content, err := FetchCOSFile(ctx, client, "data/foreverblog.json")
-	if err != nil {
-		return nil, err
-	}
-	var data ForeverData
-	if err := json.Unmarshal([]byte(content), &data); err != nil {
-		return nil, fmt.Errorf("解析 foreverblog.json 失败: %w", err)
-	}
-	return &data, nil
 }

@@ -8,25 +8,39 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config 配置
+/*
+@author: 游钓四方
+@contact:  haibiao1027@gmail.com
+@function: Config 用于存放项目所有的可配置信息，通过环境变量注入。
+*/
 type Config struct {
 	SecretID         string
 	SecretKey        string
 	GithubToken      string
 	GithubName       string
 	GithubRepository string
-	COSURL           string
+	COSRSS           string
 	MaxRetries       int
 	RetryInterval    time.Duration
 	MaxConcurrency   int
 	HTTPTimeout      time.Duration
 	DefaultAvatarURL string
+	COSAvatar        string
+	COSFavoriteRSS   string
+	COSForeverBlog   string
+	COSNameMapping   string
 }
 
-// 全局配置实例
+// AppConfig 全局配置实例
 var AppConfig *Config
 
-// LoadConfig 使用 viper 从环境变量加载配置
+/*
+@author: 游钓四方
+@contact:  haibiao1027@gmail.com
+@function: LoadConfig 使用 viper 从环境变量加载所有配置信息
+@params:   无
+@return:   error 如果必填变量缺失则返回错误，否则nil
+*/
 func LoadConfig() error {
 	viper.AutomaticEnv()
 
@@ -35,18 +49,21 @@ func LoadConfig() error {
 	viper.SetDefault("MAX_CONCURRENCY", 10)
 	viper.SetDefault("HTTP_TIMEOUT", 15*time.Second)
 
-	// 将 Github Actions 环境变量读到本地
 	cfg := &Config{
 		SecretID:         viper.GetString("TENCENT_CLOUD_SECRET_ID"),
 		SecretKey:        viper.GetString("TENCENT_CLOUD_SECRET_KEY"),
-		COSURL:           viper.GetString("COSURL"),
-		DefaultAvatarURL: viper.GetString("DEFAULT_AVATAR_URL"),
 		GithubToken:      viper.GetString("TOKEN"),
 		GithubName:       viper.GetString("NAME"),
 		GithubRepository: viper.GetString("REPOSITORY"),
+		COSRSS:           viper.GetString("COS_RSS"),
+		DefaultAvatarURL: viper.GetString("DEFAULT_AVATAR_URL"),
+		COSAvatar:        viper.GetString("COS_AVATAR"),
+		COSFavoriteRSS:   viper.GetString("COS_MY_FAVORITE_RSS"),
+		COSForeverBlog:   viper.GetString("COS_FOREVER_BLOG"),
+		COSNameMapping:   viper.GetString("COS_NAME_MAPPING"),
 	}
 
-	// 处理 int / duration 类型
+	// getEnvInt 从 viper 读取 int
 	cfg.MaxRetries = getEnvInt("MAX_RETRIES", 3)
 	cfg.RetryInterval = getEnvDuration("RETRY_INTERVAL", 10*time.Second)
 	cfg.MaxConcurrency = getEnvInt("MAX_CONCURRENCY", 10)
@@ -57,11 +74,15 @@ func LoadConfig() error {
 	required := map[string]string{
 		"TENCENT_CLOUD_SECRET_ID":  cfg.SecretID,
 		"TENCENT_CLOUD_SECRET_KEY": cfg.SecretKey,
-		"COSURL":                   cfg.COSURL,
-		"DEFAULT_AVATAR_URL":       cfg.DefaultAvatarURL,
-		"TOKEN":                    cfg.GithubToken,
 		"NAME":                     cfg.GithubName,
 		"REPOSITORY":               cfg.GithubRepository,
+		"TOKEN":                    cfg.GithubToken,
+		"COS_RSS":                  cfg.COSRSS,
+		"DEFAULT_AVATAR_URL":       cfg.DefaultAvatarURL,
+		"COS_AVATAR":               cfg.COSAvatar,
+		"COS_MY_FAVORITE_RSS":      cfg.COSFavoriteRSS,
+		"COS_FOREVER_BLOG":         cfg.COSForeverBlog,
+		"COS_NAME_MAPPING":         cfg.COSNameMapping,
 	}
 	for k, v := range required {
 		if v == "" {
