@@ -11,7 +11,7 @@ import (
 )
 
 /*
-@author: 游钓四方 <haibiao1027@gmail.com>
+@author: 游钓四方 <haibao1027@gmail.com>
 @description:   工具包：
   - CleanXMLContent：去除无效字符
   - ParseTime：解析多种日期格式
@@ -27,7 +27,7 @@ var timeFormats = []string{
 }
 
 /*
-@author: 游钓四方 <haibiao1027@gmail.com>
+@author: 游钓四方 <haibao1027@gmail.com>
 @function: CleanXMLContent 清理字符串中的不可见字符
 @params:   content string 原始RSS内容
 @return:   string  清理后的内容

@@ -25,7 +25,7 @@ import (
 )
 
 /*
-@author: 游钓四方 <haibiao1027@gmail.com>
+@author: 游钓四方 <haibao1027@gmail.com>
 @description: 核心 - 下载配置/并发抓取RSS/统计/上传COS
 */
 type RSSProcessor struct {

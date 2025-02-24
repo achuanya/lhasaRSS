@@ -12,7 +12,7 @@ import (
 )
 
 /*
-@author:   游钓四方 <haibiao1027@gmail.com>
+@author:   游钓四方 <haibao1027@gmail.com>
 @function: main
 @description: 加载配置->初始化->运行->输出结果->关闭日志
 @params:   无

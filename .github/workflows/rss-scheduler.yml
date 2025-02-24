@@ -25,12 +25,12 @@ jobs:
           TOKEN:                    ${{ secrets.TOKEN }}
           NAME:                     ${{ secrets.NAME }}
           REPOSITORY:               ${{ secrets.REPOSITORY }}
-          COSRSS:                   ${{ secrets.COSURL }}
-          DefaultAvatarURL:         ${{ secrets.DEFAULT_AVATAR_URL }}
-          COSAvatar:                ${{ secrets.COS_AVATAR }}
-          COSFavoriteRSS:           ${{ secrets.COS_MY_FAVORITE_RSS }}
-          COSForeverBlog:           ${{ secrets.COS_FOREVER_BLOG }}
-          COSNameMapping:           ${{ secrets.COS_NAME_MAPPING  }}
+          COS_RSS:                   ${{ secrets.COS_RSS }}
+          DEFAULT_AVATAR_URL:         ${{ secrets.DEFAULT_AVATAR_URL }}
+          COS_AVATAR:                ${{ secrets.COS_AVATAR }}
+          COS_MY_FAVORITE_RSS:           ${{ secrets.COS_MY_FAVORITE_RSS }}
+          COS_FOREVER_BLOG:           ${{ secrets.COS_FOREVER_BLOG }}
+          COS_NAME_MAPPING:           ${{ secrets.COS_NAME_MAPPING  }}
           MAX_RETRIES:              3
           RETRY_INTERVAL:           10s
           MAX_CONCURRENCY:          10

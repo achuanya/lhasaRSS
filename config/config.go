@@ -9,7 +9,7 @@ import (
 )
 
 /*
-@author: 游钓四方 <haibiao1027@gmail.com>
+@author: 游钓四方 <haibao1027@gmail.com>
 @function: Config
 @description: 用于存放项目所有的可配置信息，通过环境变量注入
 */

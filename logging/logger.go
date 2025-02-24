@@ -11,7 +11,7 @@ import (
 )
 
 /*
-@author: 游钓四方 <haibiao1027@gmail.com>
+@author: 游钓四方 <haibao1027@gmail.com>
 @description:
   - 日志系统:
   - 只记录错误到 error-YYYY-MM-DD.log
