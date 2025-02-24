@@ -12,28 +12,39 @@ import (
 
 /*
 @author: 游钓四方 <haibiao1027@gmail.com>
-@description: 日志系统:
+@description:
+  - 日志系统:
   - 只记录错误到 error-YYYY-MM-DD.log
   - 记录汇总信息到 summary-YYYY-MM-DD.log
   - 每天 0 点时，自动切换新文件，并清理 7 天前的旧日志
 */
 
 var (
+	// 日志通道
 	errorChan   = make(chan string, 1000)
 	summaryChan = make(chan string, 100)
 
+	// 文件句柄 & 同步锁
 	logMu       sync.Mutex
 	errLogFile  *os.File
 	sumLogFile  *os.File
 	currentDate string
 )
 
-// init：启动日志写协程 & 切换日志的定时器
+// init：启动协程
 func init() {
 	_ = os.MkdirAll("logs", 0755)
 
+	// 先手动锁定,再创建当日日志文,再解锁
+	logMu.Lock()
+	ensureLogFile()
+	logMu.Unlock()
+
+	// 启动两个后台 worker
 	go errorLogWorker()
 	go summaryLogWorker()
+
+	// 启动每天0点切换日志,并清理7天前的旧文件
 	go rotateLogsDaily()
 }
 
@@ -45,7 +56,7 @@ func LogError(err error) {
 	if err == nil {
 		return
 	}
-	// 获取调用方信息
+	// 获取调用栈信息
 	_, file, line, _ := runtime.Caller(1)
 	shortFile := file
 	if idx := strings.LastIndex(file, "/"); idx != -1 {
@@ -68,7 +79,7 @@ func LogSummary(msg string) {
 func errorLogWorker() {
 	for msg := range errorChan {
 		logMu.Lock()
-		ensureLogFile() // 确保文件已打开(若换日则切换)
+		ensureLogFile() // 保证文件已打开
 		if errLogFile != nil {
 			_, _ = errLogFile.WriteString(msg + "\n")
 		}
@@ -87,7 +98,7 @@ func summaryLogWorker() {
 	}
 }
 
-// ensureLogFile 检查是否需要切换新的日志文件
+// ensureLogFile 如果日期变了就切换文件, 程序启动时也会手动调用一次
 func ensureLogFile() {
 	today := time.Now().Format("2006-01-02")
 	if today == currentDate && errLogFile != nil && sumLogFile != nil {
@@ -104,18 +115,18 @@ func ensureLogFile() {
 	}
 
 	// 创建/追加新的
-	errFile := filepath.Join("logs", fmt.Sprintf("error-%s.log", today))
-	sumFile := filepath.Join("logs", fmt.Sprintf("summary-%s.log", today))
+	errFileName := filepath.Join("logs", fmt.Sprintf("error-%s.log", today))
+	sumFileName := filepath.Join("logs", fmt.Sprintf("summary-%s.log", today))
 
 	var err error
-	errLogFile, err = os.OpenFile(errFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	errLogFile, err = os.OpenFile(errFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Printf("无法打开错误日志文件 %s: %v\n", errFile, err)
+		fmt.Printf("无法打开错误日志文件 %s: %v\n", errFileName, err)
 		errLogFile = nil
 	}
-	sumLogFile, err = os.OpenFile(sumFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	sumLogFile, err = os.OpenFile(sumFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Printf("无法打开汇总日志文件 %s: %v\n", sumFile, err)
+		fmt.Printf("无法打开汇总日志文件 %s: %v\n", sumFileName, err)
 		sumLogFile = nil
 	}
 }
@@ -150,14 +161,13 @@ func cleanupOldLogs() {
 		if !strings.HasSuffix(name, ".log") {
 			continue
 		}
-		// 例如 error-2025-03-01.log => dateStr=2025-03-01
+		// 解析日期, 例如:error-2025-03-01.log => dateStr=2025-03-01
 		parts := strings.Split(name, "-")
 		if len(parts) < 2 {
 			continue
 		}
 		dateStr := parts[len(parts)-1]
 		dateStr = strings.TrimSuffix(dateStr, ".log")
-
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
 			continue
@@ -168,7 +178,7 @@ func cleanupOldLogs() {
 	}
 }
 
-// CloseLogger 可手动关闭通道并关闭文件，一般在主函数结束前调用
+// CloseLogger 手动结束前,可调用以关闭通道并关闭文件
 func CloseLogger() {
 	close(errorChan)
 	close(summaryChan)
