@@ -79,7 +79,7 @@ func LogSummary(msg string) {
 func errorLogWorker() {
 	for msg := range errorChan {
 		logMu.Lock()
-		ensureLogFile() // 保证文件已打开
+		ensureLogFile()
 		if errLogFile != nil {
 			_, _ = errLogFile.WriteString(msg + "\n")
 		}
@@ -139,10 +139,10 @@ func rotateLogsDaily() {
 		time.Sleep(nextMidnight.Sub(now))
 
 		logMu.Lock()
-		ensureLogFile()
+		ensureLogFile() // 新一天,新文件
 		logMu.Unlock()
 
-		cleanupOldLogs()
+		cleanupOldLogs() // 保留7天,删除更早的
 	}
 }
 
@@ -166,8 +166,7 @@ func cleanupOldLogs() {
 		if len(parts) < 2 {
 			continue
 		}
-		dateStr := parts[len(parts)-1]
-		dateStr = strings.TrimSuffix(dateStr, ".log")
+		dateStr := strings.TrimSuffix(parts[len(parts)-1], ".log")
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
 			continue

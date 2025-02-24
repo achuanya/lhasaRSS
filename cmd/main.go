@@ -38,13 +38,17 @@ func main() {
 	defer cancel()
 
 	if err := processor.Run(ctx); err != nil {
-		logging.LogError(fmt.Errorf("运行失败: %w", err))
+		// 记录错误(写error.log)
+		logging.LogError(fmt.Errorf("执行失败: %w", err))
+		// 如果想让Actions显示失败,再exit(1)
+		logging.CloseLogger()
+		// os.Exit(1)
 	}
 
-	// 输出本次爬取统计信息，(写入 summary-YYYY-MM-DD.log)
+	// 输出统计(写summary.log)
 	elapsed := time.Since(start)
 	rss.PrintRunSummary(elapsed)
 
-	// 保证日志都 flush 并安全关闭文件：
+	// 正常结束,关闭日志
 	logging.CloseLogger()
 }
