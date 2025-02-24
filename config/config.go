@@ -72,9 +72,9 @@ func LoadConfig() error {
 	required := map[string]string{
 		"TENCENT_CLOUD_SECRET_ID":  cfg.SecretID,
 		"TENCENT_CLOUD_SECRET_KEY": cfg.SecretKey,
+		"TOKEN":                    cfg.GithubToken,
 		"NAME":                     cfg.GithubName,
 		"REPOSITORY":               cfg.GithubRepository,
-		"TOKEN":                    cfg.GithubToken,
 		"COS_RSS":                  cfg.COSRSS,
 		"DEFAULT_AVATAR_URL":       cfg.DefaultAvatarURL,
 		"COS_AVATAR":               cfg.COSAvatar,
