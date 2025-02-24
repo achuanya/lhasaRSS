@@ -11,7 +11,8 @@ import (
 )
 
 /*
-  工具包：
+@author: 游钓四方 <haibiao1027@gmail.com>
+@description:   工具包：
   - CleanXMLContent：去除无效字符
   - ParseTime：解析多种日期格式
   - FormatTime：格式化时间
@@ -37,7 +38,8 @@ func CleanXMLContent(content string) string {
 }
 
 /*
-@function: ParseTime 依次尝试多种格式解析时间字符串
+@function: ParseTime
+@description: 依次按常见格式解析时间字符串,解析成功则返回
 @params:   timeStr string
 @return:   time.Time, error
 */
@@ -59,7 +61,7 @@ func FormatTime(t time.Time) string {
 }
 
 /*
-@function: WithRetry 使用指数退避策略对 fn 进行重试
+@function: WithRetry 使用指数退避算法对 fn 进行重试
 @params:
   - ctx: 上下文
   - maxRetries: 最大重试次数

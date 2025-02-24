@@ -25,12 +25,8 @@ import (
 )
 
 /*
-RSSProcessor 负责：
-  - 下载 avatar_data.json、rss_feeds.txt、foreverblog.json、name_mapping.json
-  - 并发抓取RSS
-  - 统计信息
-  - 将结果与固定数据合并，并排序
-  - 上传到COS
+@author: 游钓四方 <haibiao1027@gmail.com>
+@description: 核心 - 下载配置/并发抓取RSS/统计/上传COS
 */
 type RSSProcessor struct {
 	cfg        *config.Config
@@ -42,9 +38,6 @@ type RSSProcessor struct {
 	foreverData []cos.Article     // 固定数据
 	nameMap     map[string]string // longName->shortName
 }
-
-// 全局统计
-var globalStats = &RunStats{}
 
 type RunStats struct {
 	mu sync.Mutex
@@ -60,6 +53,9 @@ type RunStats struct {
 	MissingAvatarFeeds []string // 找不到头像RSS
 	DefaultAvatarFeeds []string // 使用默认头像RSS
 }
+
+// 全局统计
+var globalStats = &RunStats{}
 
 /*
 PrintRunSummary：在 main 中调用，输出并记录本次抓取的统计信息
@@ -95,10 +91,10 @@ func PrintRunSummary(elapsed time.Duration) {
 		}
 	}
 	sb.WriteString(fmt.Sprintf("\n本次执行总耗时：%v\n", elapsed))
+	out := sb.String()
 
-	res := sb.String()
-	fmt.Println(res)
-	logging.LogSummary(res)
+	fmt.Println(out)
+	logging.LogSummary(out) // summary-YYYY-MM-DD.log
 }
 
 /*
@@ -117,7 +113,7 @@ func NewRSSProcessor(cfg *config.Config) *RSSProcessor {
 		Transport: transport,
 	}
 
-	// 创建一个 COS 客户端，用于最终上传
+	// 创建一个 cosClient，用于上传 RSS
 	cosClient := cos.InitCOSClient(cfg)
 
 	return &RSSProcessor{
@@ -138,26 +134,27 @@ func (p *RSSProcessor) Close() {
 }
 
 /*
-Run：核心：
-  - 下载各种配置文件
+Run：
+  - 获取头像数据
+  - 获取固定数据
+  - 获取名称映射
   - 并发抓取RSS
-  - 与十年之约合并
-  - 排序、上传到COS
+  - 与固定数据合并
+  - 排序、上传 COS
 */
 func (p *RSSProcessor) Run(ctx context.Context) error {
-	// 加载头像数据
+	// 获取头像数据
 	if err := p.loadAvatars(ctx); err != nil {
 		return fmt.Errorf("加载头像数据失败: %w", err)
 	}
 
-	// 加载固定数据
+	// 获取固定数据
 	if err := p.loadForeverData(ctx); err != nil {
-		// 不中断，记录一下
 		logging.LogError(fmt.Errorf("加载固定数据失败: %w", err))
 		p.foreverData = nil
 	}
 
-	// 加载名称映射
+	// 获取名称映射
 	if err := p.loadNameMapping(ctx); err != nil {
 		logging.LogError(fmt.Errorf("加载名称映射失败: %w", err))
 	}
@@ -173,8 +170,8 @@ func (p *RSSProcessor) Run(ctx context.Context) error {
 
 	// 并发抓取
 	articles, errs := p.fetchAllRSS(ctx, feeds)
-	for _, e2 := range errs {
-		logging.LogError(e2)
+	for _, e := range errs {
+		logging.LogError(e)
 	}
 
 	// 合并固定数据
@@ -198,16 +195,16 @@ func (p *RSSProcessor) Run(ctx context.Context) error {
 }
 
 /*
-loadAvatars：下载 avatar_data.json 并解析到 avatarMap
+loadAvatars：获取 头像数据 并解析到 p.avatarMap
 */
 func (p *RSSProcessor) loadAvatars(ctx context.Context) error {
-	content, err := p.downloadFile(ctx, p.cfg.COSAvatar)
+	body, err := p.downloadFile(ctx, p.cfg.COSAvatar)
 	if err != nil {
 		return err
 	}
 	var arr []cos.AvatarData
-	if err := json.Unmarshal([]byte(content), &arr); err != nil {
-		return fmt.Errorf("解析 avatar_data.json 失败: %w", err)
+	if e2 := json.Unmarshal([]byte(body), &arr); e2 != nil {
+		return fmt.Errorf("解析 AvatarData.json 失败: %w", e2)
 	}
 	for _, a := range arr {
 		dom, er2 := p.extractDomain(a.DomainName)
@@ -221,54 +218,54 @@ func (p *RSSProcessor) loadAvatars(ctx context.Context) error {
 }
 
 /*
-loadForeverData：下载 固定数据 并解析到 p.foreverData
+loadForeverData：获取 固定数据 并解析到 p.foreverData
 */
 func (p *RSSProcessor) loadForeverData(ctx context.Context) error {
-	content, err := p.downloadFile(ctx, p.cfg.COSForeverBlog)
+	body, err := p.downloadFile(ctx, p.cfg.COSForeverBlog)
 	if err != nil {
 		return err
 	}
 	var arr []cos.Article
-	if err := json.Unmarshal([]byte(content), &arr); err != nil {
-		return fmt.Errorf("解析 foreverblog.json 失败: %w", err)
+	if e2 := json.Unmarshal([]byte(body), &arr); e2 != nil {
+		return fmt.Errorf("解析 foreverblog.json 失败: %w", e2)
 	}
 	p.foreverData = arr
 	return nil
 }
 
 /*
-loadNameMapping：下载 名称映射 并填充 p.nameMap
+loadNameMapping：获取 名称映射 并填充 p.nameMap
 */
 func (p *RSSProcessor) loadNameMapping(ctx context.Context) error {
-	content, err := p.downloadFile(ctx, p.cfg.COSNameMapping)
+	body, err := p.downloadFile(ctx, p.cfg.COSNameMapping)
 	if err != nil {
 		return err
 	}
-	var data []struct {
+	var mArr []struct {
 		LongName  string `json:"longName"`
 		ShortName string `json:"shortName"`
 	}
-	if err := json.Unmarshal([]byte(content), &data); err != nil {
-		return fmt.Errorf("解析 name_mapping.json 失败: %w", err)
+	if e2 := json.Unmarshal([]byte(body), &mArr); e2 != nil {
+		return fmt.Errorf("解析 NameMapping.json 失败: %w", e2)
 	}
-	for _, item := range data {
+	for _, item := range mArr {
 		p.nameMap[item.LongName] = item.ShortName
 	}
 	return nil
 }
 
 /*
-loadFeeds：下载 订阅文本 并返回其每行
+loadFeeds：获取 MyFavoriteRSS.txt 并返回其每行
 */
 func (p *RSSProcessor) loadFeeds(ctx context.Context) ([]string, error) {
-	content, err := p.downloadFile(ctx, p.cfg.COSFavoriteRSS)
+	body, err := p.downloadFile(ctx, p.cfg.COSFavoriteRSS)
 	if err != nil {
 		return nil, err
 	}
-	scanner := bufio.NewScanner(bytes.NewReader([]byte(content)))
+	sc := bufio.NewScanner(bytes.NewReader([]byte(body)))
 	var feeds []string
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	for sc.Scan() {
+		line := strings.TrimSpace(sc.Text())
 		if line != "" {
 			feeds = append(feeds, line)
 		}
@@ -289,7 +286,7 @@ func (p *RSSProcessor) fetchAllRSS(ctx context.Context, feeds []string) ([]cos.A
 	taskCh := make(chan string, len(feeds))
 	wg := sync.WaitGroup{}
 
-	// 启动工作池
+	// 启动多个worker
 	for i := 0; i < p.cfg.MaxConcurrency; i++ {
 		wg.Add(1)
 		go func() {
@@ -302,12 +299,14 @@ func (p *RSSProcessor) fetchAllRSS(ctx context.Context, feeds []string) ([]cos.A
 				mutex.Lock()
 				if e2 != nil {
 					errs = append(errs, e2)
+
 					globalStats.mu.Lock()
 					globalStats.FailCount++
 					globalStats.FailFeeds = append(globalStats.FailFeeds, e2.Error())
 					globalStats.mu.Unlock()
 				} else {
 					articles = append(articles, art)
+
 					globalStats.mu.Lock()
 					globalStats.SuccessCount++
 					globalStats.mu.Unlock()
@@ -322,16 +321,16 @@ func (p *RSSProcessor) fetchAllRSS(ctx context.Context, feeds []string) ([]cos.A
 		taskCh <- f
 	}
 	close(taskCh)
-
 	wg.Wait()
+
 	return articles, errs
 }
 
 /*
-processFeed：抓取并解析单个RSS，返回最新文章信息
+processFeed：抓取并解析单个 RSS，返回最新文章
 */
 func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (cos.Article, error) {
-	// 抓取内容
+	// GET内容,带重试
 	body, err := utils.WithRetry(ctx, p.cfg.MaxRetries, p.cfg.RetryInterval, func() (string, error) {
 		resp, e2 := p.httpClient.Get(feedURL)
 		if e2 != nil {
@@ -343,7 +342,7 @@ func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (cos.Art
 		}
 		data, e3 := io.ReadAll(resp.Body)
 		if e3 != nil {
-			return "", fmt.Errorf("读取响应体失败: %w", e3)
+			return "", fmt.Errorf("读取body失败: %w", e3)
 		}
 		return utils.CleanXMLContent(string(data)), nil
 	})
@@ -351,7 +350,7 @@ func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (cos.Art
 		return cos.Article{}, fmt.Errorf("抓取失败(%s): %w", feedURL, err)
 	}
 
-	// 解析 RSS
+	// 用 gofeed 解析 RSS
 	parsed, err := utils.WithRetry(ctx, p.cfg.MaxRetries, p.cfg.RetryInterval, func() (*gofeed.Feed, error) {
 		return p.parser.ParseString(body)
 	})
@@ -416,7 +415,7 @@ func (p *RSSProcessor) processFeed(ctx context.Context, feedURL string) (cos.Art
 }
 
 /*
-mapNameIfNeeded：根据 p.nameMap 做名称映射
+mapNameIfNeeded：如果在 p.nameMap 里能找到短名称,则返回短名称,否则原样返回
 */
 func (p *RSSProcessor) mapNameIfNeeded(longName string) string {
 	if short, ok := p.nameMap[longName]; ok {
@@ -440,7 +439,7 @@ func (p *RSSProcessor) extractDomain(rawURL string) (string, error) {
 }
 
 /*
-downloadFile：用 p.httpClient 下载给定fileURL的文本内容
+downloadFile：用 p.httpClient GET 下载一个文件内容
 */
 func (p *RSSProcessor) downloadFile(ctx context.Context, fileURL string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", fileURL, nil)
@@ -465,7 +464,7 @@ func (p *RSSProcessor) downloadFile(ctx context.Context, fileURL string) (string
 /*
 @function: saveArticlesToCOS
 @description:
-  - 将最终的 articles 列表序列化为 JSON
+  - 序列化 articles 为 JSON 再上传至
   - 使用 withRetry 重试上传到 COSRSS
 */
 func (p *RSSProcessor) saveArticlesToCOS(ctx context.Context, articles []cos.Article) error {
@@ -477,7 +476,7 @@ func (p *RSSProcessor) saveArticlesToCOS(ctx context.Context, articles []cos.Art
 
 	// 使用 withRetry 重试PUT
 	_, err = utils.WithRetry(ctx, p.cfg.MaxRetries, p.cfg.RetryInterval, func() (any, error) {
-		resp, putErr := p.cosClient.Object.Put(ctx, "data/rss.json", bytes.NewReader(jsonData), nil)
+		resp, putErr := p.cosClient.Object.Put(ctx, p.cfg.COSRSS, bytes.NewReader(jsonData), nil)
 		if putErr != nil {
 			return nil, fmt.Errorf("COS 上传失败: %w", putErr)
 		}

@@ -39,7 +39,7 @@ func InitCOSClient(cfg *config.Config) *gocos.Client {
 	u, _ := url.Parse(cfg.COSRSS)
 	baseURL := &gocos.BaseURL{BucketURL: u}
 
-	customTransport := &http.Transport{
+	transport := &http.Transport{
 		MaxIdleConns:        cfg.MaxConcurrency * 2,
 		IdleConnTimeout:     90 * time.Second,
 		DisableCompression:  false,
@@ -50,13 +50,12 @@ func InitCOSClient(cfg *config.Config) *gocos.Client {
 	authTransport := &gocos.AuthorizationTransport{
 		SecretID:  cfg.SecretID,
 		SecretKey: cfg.SecretKey,
-		Transport: customTransport,
+		Transport: transport,
 	}
 
-	httpClient := &http.Client{
+	client := &http.Client{
 		Transport: authTransport,
 		Timeout:   cfg.HTTPTimeout,
 	}
-
-	return gocos.NewClient(baseURL, httpClient)
+	return gocos.NewClient(baseURL, client)
 }

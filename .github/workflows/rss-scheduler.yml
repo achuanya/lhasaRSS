@@ -17,7 +17,7 @@ jobs:
         with:
           go-version: "1.24"
 
-      - name: Go env
+      - name: Show Go env
         run: go env
         env:
           TENCENT_CLOUD_SECRET_ID:  ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
@@ -36,7 +36,7 @@ jobs:
           MAX_CONCURRENCY:          10
           HTTP_TIMEOUT:             15s
 
-      - name: Install dependencies
+      - name: Go mod tidy
         run: go mod tidy
 
       - name: Build and run
@@ -57,7 +57,7 @@ jobs:
           echo "=== SUMMARY LOGS for $today ==="
           cat logs/summary-$today.log || true
 
-      - name: Upload logs as artifact
+      - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:

@@ -13,22 +13,24 @@ import (
 
 /*
 @author:   游钓四方 <haibiao1027@gmail.com>
-@function: main 用于启动，不限于加载配置、创建处理器、运行逻辑、输出统计等）。
+@function: main
+@description: 加载配置->初始化->运行->输出结果->关闭日志
 @params:   无
-@return:   无（通过os.Exit退出）
+@return:   无(遇到严重错误时会 os.Exit(1))
 */
 func main() {
-	// 加载配置
+	// 加载配置（通过 viper 环境变量读取）
 	if err := config.LoadConfig(); err != nil {
 		logging.LogError(fmt.Errorf("配置加载失败: %w", err))
+		logging.CloseLogger()
 		os.Exit(1)
 	}
 
-	// 初始化 RSSProcessor
+	// 初始化 RSSProcessor 后续并发抓取与处理
 	processor := rss.NewRSSProcessor(config.AppConfig)
-	defer processor.Close()
+	defer processor.Close() // 退出时释放资源
 
-	// 记录开始时间，用于统计耗时
+	// 记录启动时间，用于统计耗时
 	start := time.Now()
 
 	// 设置全局超时上下文（3分钟）
@@ -39,10 +41,10 @@ func main() {
 		logging.LogError(fmt.Errorf("运行失败: %w", err))
 	}
 
-	// 输出本次爬取统计信息，写入 summary 日志
+	// 输出本次爬取统计信息，(写入 summary-YYYY-MM-DD.log)
 	elapsed := time.Since(start)
 	rss.PrintRunSummary(elapsed)
 
-	// 关闭日志文件
-	// logging.CloseLogger()
+	// 保证日志都 flush 并安全关闭文件：
+	logging.CloseLogger()
 }

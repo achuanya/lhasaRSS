@@ -10,7 +10,8 @@ import (
 
 /*
 @author: 游钓四方 <haibiao1027@gmail.com>
-@function: Config 用于存放项目所有的可配置信息，通过环境变量注入
+@function: Config
+@description: 用于存放项目所有的可配置信息，通过环境变量注入
 */
 type Config struct {
 	SecretID         string        // 腾讯云秘钥ID
@@ -23,7 +24,7 @@ type Config struct {
 	RetryInterval    time.Duration // 初始重试间隔
 	MaxConcurrency   int           // 并发量
 	HTTPTimeout      time.Duration // http 超时
-	DefaultAvatarURL string        // 默认头像URL（从env加载）
+	DefaultAvatarURL string        // 默认头像URL
 	COSAvatar        string
 	COSFavoriteRSS   string
 	COSForeverBlog   string
@@ -91,25 +92,24 @@ func LoadConfig() error {
 	return nil
 }
 
-// getEnvInt 从 viper 读取 int
+// getEnvInt  / getEnvDuration 用于辅助解析数值和时间
 func getEnvInt(key string, defaultValue int) int {
-	valStr := viper.GetString(key)
-	if valStr == "" {
+	val := viper.GetString(key)
+	if val == "" {
 		return defaultValue
 	}
-	if i, err := strconv.Atoi(valStr); err == nil {
+	if i, err := strconv.Atoi(val); err == nil {
 		return i
 	}
 	return defaultValue
 }
 
-// getEnvDuration 从 viper 读取 time.Duration
 func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
-	valStr := viper.GetString(key)
-	if valStr == "" {
+	val := viper.GetString(key)
+	if val == "" {
 		return defaultValue
 	}
-	if d, err := time.ParseDuration(valStr); err == nil {
+	if d, err := time.ParseDuration(val); err == nil {
 		return d
 	}
 	return defaultValue
