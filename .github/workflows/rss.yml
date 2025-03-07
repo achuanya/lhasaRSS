@@ -1,0 +1,33 @@
+name: RSS Fetch
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.18'
+
+      - name: Build and Run
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
+          NAME: ${{ secrets.NAME }}
+          REPOSITORY: ${{ secrets.REPOSITORY }}
+          TENCENT_CLOUD_SECRET_ID: ${{ secrets.TENCENT_CLOUD_SECRET_ID }}
+          TENCENT_CLOUD_SECRET_KEY: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
+          RSS: ${{ secrets.RSS }}
+          DATA: ${{ secrets.DATA }}
+        run: |
+          go mod tidy
+          go build -o rssfetch main.go
+          ./rssfetch
