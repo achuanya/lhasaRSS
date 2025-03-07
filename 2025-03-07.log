@@ -1,0 +1,6 @@
+[WARN] 以下订阅拉取失败：
+ - 订阅链接: https://lingxiankong.github.io/pages/rss.xml，错误: Get "https://lingxiankong.github.io/pages/rss.xml": read tcp 192.168.206.236:50985->185.199.108.153:443: wsarecv: An existing connection was forcibly closed by the remote host.
+ - 订阅链接: https://hwv430.blogspot.com/feeds/posts/default，错误: Get "https://hwv430.blogspot.com/feeds/posts/default": dial tcp 74.86.118.24:443: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond.
+ - 订阅链接: https://blog.pursuitus.com/feed，错误: Get "https://blog.pursuitus.com/feed": read tcp 192.168.206.236:51026->104.21.48.1:443: wsarecv: An existing connection was forcibly closed by the remote host.
+ - 订阅链接: http://feeds.kenengba.com/kenengbarss，错误: Get "http://feeds.kenengba.com/kenengbarss": dial tcp 103.56.16.112:80: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond.
+ - 订阅链接: https://tcxx.info/feed，错误: Get "https://tcxx.info/feed": read tcp 192.168.206.236:51049->104.21.32.1:443: wsarecv: An existing connection was forcibly closed by the remote host.
