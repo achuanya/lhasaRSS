@@ -4,3 +4,6 @@
 [WARN] 以下订阅拉取失败：
  - 订阅链接: https://lingxiankong.github.io/pages/rss.xml，错误: XML syntax error on line 4580: illegal character code U+0008
  - 订阅链接: https://tcxx.info/feed，错误: http error: 403 Forbidden
+[WARN] 以下订阅拉取失败：
+ - 订阅链接: https://lingxiankong.github.io/pages/rss.xml，错误: XML syntax error on line 4580: illegal character code U+0008
+ - 订阅链接: https://tcxx.info/feed，错误: http error: 403 Forbidden
