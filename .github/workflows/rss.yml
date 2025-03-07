@@ -31,3 +31,4 @@ jobs:
           go mod tidy
           go build -o rssfetch main.go
           ./rssfetch
+          echo "=== Done RSS Fetch ==="
