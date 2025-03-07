@@ -311,6 +311,14 @@ func main() {
 	rssListURL := os.Getenv("RSS") // 例如: https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/lhasaRSS/rss.txt
 	dataURL := os.Getenv("DATA")   // 例如: https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/lhasaRSS/data.json
 
+	fmt.Println(">> Debug: secretID=", secretID)
+	fmt.Println(">> Debug: secretKey=", secretKey)
+	fmt.Println(">> Debug: RSS=", rssListURL)
+	fmt.Println(">> Debug: DATA=", dataURL)
+	fmt.Println(">> Debug: TOKEN=", os.Getenv("TOKEN"))
+	fmt.Println(">> Debug: NAME=", os.Getenv("NAME"))
+	fmt.Println(">> Debug: REPOSITORY=", os.Getenv("REPOSITORY"))
+
 	if secretID == "" || secretKey == "" || rssListURL == "" || dataURL == "" {
 		_ = appendLog(ctx, "[ERROR] 环境变量缺失，请检查 TENCENT_CLOUD_SECRET_ID/TENCENT_CLOUD_SECRET_KEY/RSS/DATA 是否已配置。\n")
 		return
