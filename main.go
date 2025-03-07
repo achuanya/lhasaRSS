@@ -17,53 +17,150 @@ import (
 
 	"github.com/mmcdole/gofeed"
 	"github.com/tencentyun/cos-go-sdk-v5"
+
+	"golang.org/x/net/html"
 )
 
-// Article 表示单篇文章（只保留关键字段）
+/* -------------------- 数据结构 -------------------- */
+
+// Article 只保留最关键字段
 type Article struct {
 	BlogName  string `json:"blog_name"`
 	Title     string `json:"title"`
 	Published string `json:"published"`
 	Link      string `json:"link"`
-	Avatar    string `json:"avatar"`
+	Avatar    string `json:"avatar"` // 博客头像
 }
 
-// AllData 整体数据结构
 type AllData struct {
 	Items   []Article `json:"items"`
 	Updated time.Time `json:"updated"`
 }
 
-// fetchFeedAvatarURL 是我们“多次尝试抓取头像”的核心函数
-func fetchFeedAvatarURL(feed *gofeed.Feed) string {
-	// 1）若 feed.Image 存在并且有 URL，就用这个
+/* -------------------- 头像处理：RSS -> 如无则抓主页面 HTML -> fallback favicon.ico -------------------- */
+
+// getFeedAvatarURL 先看 RSS feed.Image 是否有值，否则就去抓主页面 HTML
+func getFeedAvatarURL(feed *gofeed.Feed) string {
+	// 如果 RSS 里有 <image> 标签
 	if feed.Image != nil && feed.Image.URL != "" {
 		return feed.Image.URL
 	}
-
-	// 2）若有 iTunes 信息，则尝试 feed.ITunes.Image
-	// gofeed 对 iTunes 的字段支持见 https://pkg.go.dev/github.com/mmcdole/gofeed#ITunes
-	if feed.ITunes != nil && feed.ITunes.Image != "" {
-		return feed.ITunes.Image
+	// 否则访问 feed.Link (如果有)
+	if feed.Link == "" {
+		return ""
 	}
-
-	// 3）如果都没有，则退化到「domain + /favicon.ico」
-	if feed.Link != "" {
-		u, err := url.Parse(feed.Link)
-		if err == nil && u.Scheme != "" && u.Host != "" {
-			return fmt.Sprintf("%s://%s/favicon.ico", u.Scheme, u.Host)
-		}
-	}
-
-	// 4）完全找不到，就返回空
-	return ""
+	// 抓取页面 <head> 中可能的 icon 标签
+	avatar := fetchBlogLogo(feed.Link)
+	return avatar
 }
 
-/*
--------------------- GitHub 相关日志读写函数（和原先类似） --------------------
-*/
+// fetchBlogLogo 尝试访问给定链接（通常是博客主页），解析 HTML <head> 寻找最常见的 icon；如果都没有就返回 domain/favicon.ico
+func fetchBlogLogo(blogURL string) string {
+	// 1. 先请求该页面
+	resp, err := http.Get(blogURL)
+	if err != nil {
+		// 如果请求失败，就尝试 fallback 到 domain + /favicon.ico
+		return fallbackFavicon(blogURL)
+	}
+	defer resp.Body.Close()
 
-// getGitHubFileSHA 获取指定文件的 SHA（若文件不存在则返回空）
+	// 如果不是 200，依然尝试 fallback
+	if resp.StatusCode != 200 {
+		return fallbackFavicon(blogURL)
+	}
+
+	// 2. 解析 HTML，找 <link rel="icon" ...> / <link rel="shortcut icon"> / <link rel="apple-touch-icon"> / <meta property="og:image">
+	doc, err := html.Parse(resp.Body)
+	if err != nil {
+		return fallbackFavicon(blogURL)
+	}
+
+	// 在 <head> 里找可能的 icon link
+	var iconHref string
+	var ogImage string
+
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode {
+			tagName := strings.ToLower(n.Data)
+			if tagName == "link" {
+				var relVal, hrefVal string
+				for _, attr := range n.Attr {
+					switch strings.ToLower(attr.Key) {
+					case "rel":
+						relVal = strings.ToLower(attr.Val)
+					case "href":
+						hrefVal = attr.Val
+					}
+				}
+				// 如果 rel 是 icon / shortcut icon / apple-touch-icon
+				if (strings.Contains(relVal, "icon")) && hrefVal != "" {
+					// 优先记住第一个匹配到的 icon
+					if iconHref == "" {
+						iconHref = hrefVal
+					}
+				}
+			} else if tagName == "meta" {
+				// <meta property="og:image" content="...">
+				var propVal, contentVal string
+				for _, attr := range n.Attr {
+					switch strings.ToLower(attr.Key) {
+					case "property":
+						propVal = strings.ToLower(attr.Val)
+					case "content":
+						contentVal = attr.Val
+					}
+				}
+				if propVal == "og:image" && contentVal != "" {
+					ogImage = contentVal
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+	f(doc)
+
+	// 优先用 link rel="icon" / "shortcut icon" / "apple-touch-icon"
+	if iconHref != "" {
+		return makeAbsoluteURL(blogURL, iconHref)
+	}
+	// 再试 og:image
+	if ogImage != "" {
+		return makeAbsoluteURL(blogURL, ogImage)
+	}
+	// 都没有就 fallback
+	return fallbackFavicon(blogURL)
+}
+
+// fallbackFavicon 解析 domain，返回 domain + /favicon.ico
+func fallbackFavicon(blogURL string) string {
+	u, err := url.Parse(blogURL)
+	if err != nil {
+		return ""
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s://%s/favicon.ico", u.Scheme, u.Host)
+}
+
+// makeAbsoluteURL 用于把相对路径拼成绝对路径
+func makeAbsoluteURL(baseStr, refStr string) string {
+	baseURL, err := url.Parse(baseStr)
+	if err != nil {
+		return refStr
+	}
+	refURL, err := url.Parse(refStr)
+	if err != nil {
+		return refStr
+	}
+	return baseURL.ResolveReference(refURL).String()
+}
+
+/* -------------------- GitHub 日志写入相关 -------------------- */
+
 func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
@@ -96,7 +193,6 @@ func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (str
 	return response.SHA, nil
 }
 
-// getGitHubFileContent 获取 GitHub 上文件（解码后），不存在则返回空
 func getGitHubFileContent(ctx context.Context, token, owner, repo, path string) (string, string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
@@ -135,7 +231,6 @@ func getGitHubFileContent(ctx context.Context, token, owner, repo, path string) 
 	return string(decoded), response.SHA, nil
 }
 
-// putGitHubFile 创建/更新文件
 func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, commitMsg, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 
@@ -143,7 +238,7 @@ func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, 
 	payload := map[string]interface{}{
 		"message": commitMsg,
 		"content": encoded,
-		"branch":  "main", // 如果仓库分支是 master，则改为 master
+		"branch":  "main", // 如果分支是 master，请改成 "master"
 		"committer": map[string]string{
 			"name":  committerName,
 			"email": committerEmail,
@@ -164,8 +259,8 @@ func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, 
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
 
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -179,7 +274,6 @@ func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, 
 	return nil
 }
 
-// deleteGitHubFile 删除文件(如旧日志)
 func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	payload := map[string]interface{}{
@@ -201,8 +295,8 @@ func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, commit
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
 
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -216,7 +310,6 @@ func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, commit
 	return nil
 }
 
-// listGitHubDir 列出目录
 func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struct {
 	Name string `json:"name"`
 	SHA  string `json:"sha"`
@@ -249,45 +342,38 @@ func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struc
 		SHA  string `json:"sha"`
 		Type string `json:"type"`
 	}
-	if err = json.NewDecoder(resp.Body).Decode(&files); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&files); err != nil {
 		return nil, err
 	}
 	return files, nil
 }
 
 /*
-appendLog: 在旧日志基础上追加新内容。这里把「给日志加上时间戳」也写进去了。
-
-思路：
-- 先获取今天的日志文件
-- 为要写的内容的每一行，加上 "[YYYY-MM-DD HH:MM:SS]" 前缀
-- 追加到旧日志
-- 再上传到仓库
+appendLog:
+- 不再拼接 repo = owner + "/" + repoName
+- 日志附带时间戳
 */
 func appendLog(ctx context.Context, rawLogContent string) error {
 	token := os.Getenv("TOKEN")
-	githubUser := os.Getenv("NAME")
-	repoName := os.Getenv("REPOSITORY")
-
+	githubUser := os.Getenv("NAME")     // GitHub 用户名
+	repoName := os.Getenv("REPOSITORY") // 仓库名，例如 "lhasaRSS"
 	owner := githubUser
-	repo := repoName
-	// if !strings.Contains(repoName, "/") {
-	// 	repo = owner + "/" + repoName
-	// }
+	repo := repoName // 不再拼接
 
 	committerName := githubUser
 	committerEmail := githubUser + "@users.noreply.github.com"
 
-	dateStr := time.Now().Format("2006-01-02") // 如 "2025-03-07"
+	// 日志文件形如 logs/2025-03-07.log
+	dateStr := time.Now().Format("2006-01-02")
 	logPath := filepath.Join("logs", dateStr+".log")
 
-	// 1. 读取旧日志
+	// 1. 先获取旧内容(如果有)
 	oldContent, oldSHA, err := getGitHubFileContent(ctx, token, owner, repo, logPath)
 	if err != nil {
 		return err
 	}
 
-	// 2. 为新日志的每一行都加上带时间的前缀
+	// 2. 生成带时间戳的新日志
 	var sb strings.Builder
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	lines := strings.Split(rawLogContent, "\n")
@@ -296,25 +382,23 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 		if line == "" {
 			continue
 		}
-		// 每一行前加上 "[2025-03-07 13:45:01]" 这样的时间
 		sb.WriteString(fmt.Sprintf("[%s] %s\n", timestamp, line))
 	}
 	newLogSegment := sb.String()
 
-	// 3. 拼接
 	newContent := oldContent + newLogSegment
 
-	// 4. 上传更新
+	// 3. 上传到 GitHub
 	if err := putGitHubFile(ctx, token, owner, repo, logPath, oldSHA, newContent,
-		"Update log: "+dateStr, committerName, committerEmail); err != nil {
+		"Update log: "+dateStr, committerName, committerEmail,
+	); err != nil {
 		return err
 	}
 
-	// 5. 清理 7 天前的日志
+	// 4. 清理 7 天前的日志
 	return cleanOldLogs(ctx, token, owner, repo, committerName, committerEmail)
 }
 
-// cleanOldLogs 删除7天前日志
 func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, committerEmail string) error {
 	files, err := listGitHubDir(ctx, token, owner, repo, "logs")
 	if err != nil {
@@ -336,8 +420,8 @@ func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, commit
 			continue
 		}
 		if t.Before(sevenDaysAgo) {
-			logFullPath := filepath.Join("logs", f.Name)
-			delErr := deleteGitHubFile(ctx, token, owner, repo, logFullPath, f.SHA, committerName, committerEmail)
+			path := filepath.Join("logs", f.Name)
+			delErr := deleteGitHubFile(ctx, token, owner, repo, path, f.SHA, committerName, committerEmail)
 			if delErr != nil {
 				fmt.Printf("删除旧日志 %s 失败: %v\n", f.Name, delErr)
 			} else {
@@ -348,12 +432,12 @@ func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, commit
 	return nil
 }
 
-/* -------------------- 主函数：抓最新一篇文章 & 高级头像 & 记录日志 -------------------- */
+/* -------------------- 主逻辑：只抓最新一篇 & 头像优先 feed.Image 否则抓主页 logo -------------------- */
 
 func main() {
 	ctx := context.Background()
 
-	// 读取环境变量
+	// 读取必要的环境变量
 	secretID := os.Getenv("TENCENT_CLOUD_SECRET_ID")
 	secretKey := os.Getenv("TENCENT_CLOUD_SECRET_KEY")
 	rssListURL := os.Getenv("RSS")
@@ -368,7 +452,7 @@ func main() {
 	fmt.Println(">> Debug: REPOSITORY=", os.Getenv("REPOSITORY"))
 
 	if secretID == "" || secretKey == "" || rssListURL == "" || dataURL == "" {
-		_ = appendLog(ctx, "[ERROR] 必要的环境变量缺失, 请检查 TENCENT_CLOUD_SECRET_ID/TENCENT_CLOUD_SECRET_KEY/RSS/DATA.")
+		_ = appendLog(ctx, "[ERROR] 环境变量缺失，请检查 TENCENT_CLOUD_SECRET_ID/TENCENT_CLOUD_SECRET_KEY/RSS/DATA 是否已配置。")
 		return
 	}
 
@@ -383,12 +467,13 @@ func main() {
 		return
 	}
 
-	// 2. 逐个解析，只取最新文章，获取头像
+	// 2. 逐个订阅，只抓最新文章
 	fp := gofeed.NewParser()
 	var allItems []Article
 	var failedList []string
 
 	for _, link := range rssLinks {
+		link = strings.TrimSpace(link)
 		if link == "" {
 			continue
 		}
@@ -398,31 +483,32 @@ func main() {
 			continue
 		}
 		if feed == nil || len(feed.Items) == 0 {
+			// 没有任何文章就跳过
 			continue
 		}
 
-		avatar := fetchFeedAvatarURL(feed)
+		avatarURL := getFeedAvatarURL(feed)
 
-		// 只取最新一篇 (feed.Items[0])，如果想更严谨可以先排序
-		latest := feed.Items[0]
-		newArticle := Article{
+		// 只拿最新一篇
+		latest := feed.Items[0] // 如果想更精准可先对 feed.Items 排序
+		article := Article{
 			BlogName:  feed.Title,
 			Title:     latest.Title,
 			Published: latest.Published,
 			Link:      latest.Link,
-			Avatar:    avatar,
+			Avatar:    avatarURL,
 		}
-		allItems = append(allItems, newArticle)
+		allItems = append(allItems, article)
 	}
 
-	// 3. 若需要对最终结果再按发布时间排序，可执行以下逻辑
+	// 3. 若需要统一按发布时间排序
 	sort.Slice(allItems, func(i, j int) bool {
 		ti, _ := time.Parse(time.RFC1123Z, allItems[i].Published)
 		tj, _ := time.Parse(time.RFC1123Z, allItems[j].Published)
 		return ti.After(tj)
 	})
 
-	// 4. 组装 JSON 数据
+	// 4. 组装最终 JSON
 	allData := AllData{
 		Items:   allItems,
 		Updated: time.Now(),
@@ -440,7 +526,7 @@ func main() {
 		return
 	}
 
-	// 6. 日志：如果有失败订阅就写 [WARN]，否则 [INFO]
+	// 6. 写日志
 	if len(failedList) > 0 {
 		sb := strings.Builder{}
 		sb.WriteString("[WARN] 以下订阅拉取失败：\n")
@@ -453,9 +539,9 @@ func main() {
 	}
 }
 
-/* -------------------- fetchRSSLinks & uploadToCos 保持与原先类似 -------------------- */
+/* -------------------- 工具函数: fetchRSSLinks / uploadToCos -------------------- */
 
-// fetchRSSLinks 拉取文本文件，按行分割为 RSS 链接
+// fetchRSSLinks 从文本文件逐行读取 RSS 链接
 func fetchRSSLinks(rssListURL string) ([]string, error) {
 	resp, err := http.Get(rssListURL)
 	if err != nil {
@@ -466,14 +552,13 @@ func fetchRSSLinks(rssListURL string) ([]string, error) {
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("status code: %d", resp.StatusCode)
 	}
-	body, err := io.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	lines := strings.Split(string(body), "\n")
 	var links []string
-	for _, line := range lines {
+	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" {
 			links = append(links, line)
@@ -482,7 +567,7 @@ func fetchRSSLinks(rssListURL string) ([]string, error) {
 	return links, nil
 }
 
-// uploadToCos 使用 cos-go-sdk-v5，将数据覆盖上传到指定的 data.json
+// uploadToCos 使用 cos-go-sdk-v5，将 data.json 覆盖上传
 func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data []byte) error {
 	u, err := url.Parse(dataURL)
 	if err != nil {
