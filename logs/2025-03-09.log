@@ -79,3 +79,8 @@
 [2025-03-09 19:10:18] - 订阅链接: https://lingxiankong.github.io/pages/rss.xml，错误: XML syntax error on line 4580: illegal character code U+0008
 [2025-03-09 19:10:18] - 订阅链接: https://tcxx.info/feed，错误: http error: 403 Forbidden
 [2025-03-09 19:10:18] - 订阅链接: https://tumutanzi.com/feed，错误: http error: 403 Forbidden
+[2025-03-09 20:15:02] [WARN] 以下订阅拉取失败：
+[2025-03-09 20:15:02] - 订阅链接: https://lingxiankong.github.io/pages/rss.xml，错误: XML syntax error on line 4580: illegal character code U+0008
+[2025-03-09 20:15:02] - 订阅链接: https://xyzbz.cn/feed，错误: Get "https://xyzbz.cn/feed": net/http: TLS handshake timeout
+[2025-03-09 20:15:02] - 订阅链接: https://tcxx.info/feed，错误: http error: 403 Forbidden
+[2025-03-09 20:15:02] - 订阅链接: https://tumutanzi.com/feed，错误: http error: 403 Forbidden
