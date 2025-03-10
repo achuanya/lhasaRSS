@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"math"
@@ -223,27 +224,120 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, baseWait time.Duration, backoffMultiple float64) (*gofeed.Feed, error) {
 	var lastErr error
 
-	// 尝试maxRetries次
 	for i := 0; i < maxRetries; i++ {
-		feed, err := parser.ParseURL(rssLink)
-		if err == nil {
-			// 如果解析成功, 直接返回feed
-			return feed, nil
+		var feed *gofeed.Feed
+		var err error
+
+		if i == 0 {
+			// 第一次直接常规抓取
+			feed, err = fetchFeed(rssLink, parser)
+		} else {
+			// 后续重试时，采用自定义 User-Agent + 忽略 SSL 证书 + 清洗非法字符
+			feed, err = fetchFeedWithFix(rssLink, parser)
 		}
 
-		// 记录本次失败, 并在GitHub Actions控制台打印
-		lastErr = err
-		fmt.Printf("[Retry %d/%d] RSS parse fail for %s: %v\n",
-			i+1, maxRetries, rssLink, err)
+		if err == nil {
+			return feed, nil // 解析成功，直接返回
+		}
 
-		// 如果还没到最后一次, 则等待一段时间后重试(指数退避)
+		// 记录失败原因
+		lastErr = err
+		fmt.Printf("[Retry %d/%d] RSS parse fail for %s: %v\n", i+1, maxRetries, rssLink, err)
+
+		// 指数退避（除最后一次外）
 		if i < maxRetries-1 {
-			// 等待时间 = baseWait * (backoffMultiple ^ i)
 			wait := time.Duration(float64(baseWait) * math.Pow(backoffMultiple, float64(i)))
 			time.Sleep(wait)
 		}
 	}
 
-	// 多次重试仍然失败, 返回最后一次的错误
 	return nil, lastErr
+}
+
+// fetchFeedWithFix 采用修复策略：自定义 User-Agent + 允许跳过 SSL + 清洗非法字符
+func fetchFeedWithFix(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
+	// 自定义 HTTP 客户端，忽略 SSL 证书问题
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // 忽略证书问题
+		},
+		Timeout: 10 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", rssLink, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// 设置自定义 User-Agent
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; RSSFetcher/1.0)")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP error: %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+
+	rawData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// 失败后才执行非法字符清洗
+	cleanData := removeInvalidXMLChars(rawData)
+	return parser.ParseString(string(cleanData))
+}
+
+// fetchFeed 函数: 先HTTP GET获取RSS内容, 去除非法XML字符后再用 gofeed.Parser 解析
+// 【游钓四方 <haibao1027@gmail.com>】
+// 作用:
+//   - 解决极少数RSS源中出现类似 "illegal character code U+0008" 等控制字符导致XML报错
+//   - 先将响应Body全部读取, 调用 removeInvalidXMLChars 函数清洗后, 再 parser.ParseString()
+//
+// 参数:
+//   - rssLink : RSS链接
+//   - parser  : gofeed.Parser 对象
+//
+// 返回:
+//   - *gofeed.Feed : 成功时返回Feed对象, 否则error
+func fetchFeed(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
+	resp, err := http.Get(rssLink)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http error: %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+
+	rawData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// 对RSS数据进行非法XML字符过滤，尤其是U+0008、U+0000等控制字符
+	cleanData := removeInvalidXMLChars(rawData)
+	return parser.ParseString(string(cleanData))
+}
+
+// removeInvalidXMLChars 函数: 去除常见非法的控制字符, 避免XML解析报错
+// 【游钓四方 <haibao1027@gmail.com>】
+// 说明:
+//   - XML 1.0 对字符有严格限制, ASCII 0~8、11~12、14~31 都是不被允许的
+//   - 这里简单做个过滤, 将这些字节全部剔除; 对大多数情况是安全的, 不会影响正常文本.
+func removeInvalidXMLChars(data []byte) []byte {
+	// 0x09(TAB)、0x0A(\n)、0x0D(\r) 在XML 1.0中是合法的控制字符, 其他 <0x20 的都非法
+	// 参考: https://www.w3.org/TR/xml11/#charsets
+	filtered := make([]byte, 0, len(data))
+	for _, b := range data {
+		if b == 0x09 || b == 0x0A || b == 0x0D || b >= 0x20 {
+			filtered = append(filtered, b)
+		}
+	}
+	return filtered
 }
