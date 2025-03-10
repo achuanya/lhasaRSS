@@ -210,6 +210,9 @@ func checkURLAvailable(urlStr string) (bool, error) {
 
 /* ==================== GitHub 日志写入相关函数 ==================== */
 
+// 下列函数 appendLog / cleanOldLogs / putGitHubFile 等，均是用于将日志写入 GitHub，或在 GitHub 仓库中清理旧日志等
+// 可以根据需要保留或修改
+
 // getGitHubFileSHA 获取指定仓库内某个路径文件的 SHA；若文件不存在则返回空
 func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
@@ -415,7 +418,7 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 	committerName := githubUser
 	committerEmail := githubUser + "@users.noreply.github.com"
 
-	// 日志文件名：logs/2025-03-10.log (示例)
+	// 日志文件名：logs/2025-03-10.log
 	dateStr := time.Now().Format("2006-01-02")
 	logPath := filepath.Join("logs", dateStr+".log")
 
@@ -425,7 +428,7 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 		return err
 	}
 
-	// 2. 在新内容每行前面加上时间戳（原代码亦是如此，这里保持）
+	// 2. 在新内容每行前面加上时间戳
 	var sb strings.Builder
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	lines := strings.Split(rawLogContent, "\n")
@@ -484,21 +487,7 @@ func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, commit
 	return nil
 }
 
-/* ==================== 工具函数：非法字符清洗 / RSS列表获取 / COS上传 ==================== */
-
-// sanitizeXML 将字符串中的非法 XML 字符过滤掉（或替换为空字符串）
-func sanitizeXML(input string) string {
-	var sb strings.Builder
-	for _, r := range input {
-		// 过滤掉除 \t, \n, \r 以外的小于0x20的控制字符
-		if (r == 0x9) || (r == 0xA) || (r == 0xD) || (r >= 0x20) {
-			sb.WriteRune(r)
-		} else {
-			// 跳过无效控制字符
-		}
-	}
-	return sb.String()
-}
+/* ==================== 工具函数: fetchRSSLinks / uploadToCos ==================== */
 
 // fetchRSSLinks 从给定 URL 的文本文件逐行读取 RSS 链接
 func fetchRSSLinks(rssListURL string) ([]string, error) {
@@ -550,33 +539,7 @@ func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data 
 	return err
 }
 
-/* ==================== 核心抓取逻辑 + 主函数 ==================== */
-
-// fetchAndParseRSS 对单个 RSS 链接进行抓取，并用 sanitizeXML 过滤非法字符后再调用 gofeed 解析
-func fetchAndParseRSS(rssLink string, fp *gofeed.Parser) (*gofeed.Feed, error) {
-	// 1. 发送请求
-	resp, err := http.Get(rssLink)
-	if err != nil {
-		return nil, fmt.Errorf("请求失败: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// 2. 读取 Body
-	rawBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取失败: %v", err)
-	}
-
-	// 3. 清洗非法字符
-	cleaned := sanitizeXML(string(rawBytes))
-
-	// 4. 交给 gofeed 解析
-	feed, err := fp.ParseString(cleaned)
-	if err != nil {
-		return nil, fmt.Errorf("解析 RSS 失败: %v", err)
-	}
-	return feed, nil
-}
+/* ==================== 主函数 ==================== */
 
 func main() {
 	// 创建一个上下文，可在整个流程中使用
@@ -609,12 +572,12 @@ func main() {
 		return
 	}
 
-	// 并发控制
+	// 并发相关
 	maxGoroutines := 10
 	sem := make(chan struct{}, maxGoroutines)
 	var wg sync.WaitGroup
 
-	// 存放结果
+	// 用于存放抓取结果
 	resultChan := make(chan feedResult, len(rssLinks))
 	fp := gofeed.NewParser()
 
@@ -634,13 +597,15 @@ func main() {
 			var fr feedResult
 			fr.FeedLink = rssLink
 
-			feed, err := fetchAndParseRSS(rssLink, fp)
+			// 解析 RSS
+			feed, err := fp.ParseURL(rssLink)
 			if err != nil {
-				fr.Err = err
+				fr.Err = fmt.Errorf("解析 RSS 失败: %v", err)
 				resultChan <- fr
 				return
 			}
 			if feed == nil || len(feed.Items) == 0 {
+				// 如果没有任何文章
 				fr.Err = fmt.Errorf("该订阅没有内容")
 				resultChan <- fr
 				return
@@ -652,13 +617,13 @@ func main() {
 				BlogName: feed.Title,
 			}
 
-			// 校验头像
+			// 校验头像，如果空就直接用默认头像；如果能访问则用原链接，不能访问也用默认
 			if avatarURL == "" {
-				fr.Article.Avatar = ""
+				fr.Article.Avatar = "" // 先留空，后面在主goroutine里统计
 			} else {
 				ok, _ := checkURLAvailable(avatarURL)
 				if !ok {
-					fr.Article.Avatar = "BROKEN"
+					fr.Article.Avatar = "BROKEN" // 标记为无法访问
 				} else {
 					fr.Article.Avatar = avatarURL
 				}
@@ -672,8 +637,10 @@ func main() {
 			// 尝试解析发布时间
 			pubTime := time.Now()
 			if latest.PublishedParsed != nil {
+				// gofeed 已经帮忙解析
 				pubTime = *latest.PublishedParsed
 			} else if latest.Published != "" {
+				// 自己解析
 				if t, e := parseTime(latest.Published); e == nil {
 					pubTime = t
 				}
@@ -699,7 +666,7 @@ func main() {
 	}
 
 	// 记录各种可能的问题，用于最终写日志
-	var parseFails []string       // RSS 解析失败 / 请求失败
+	var parseFails []string       // RSS 解析失败
 	var feedEmpties []string      // 无内容
 	var noAvatarList []string     // 头像字段为空
 	var brokenAvatarList []string // 头像无法访问
@@ -707,9 +674,10 @@ func main() {
 
 	// 3. 收集结果
 	for r := range resultChan {
+		// 判断是否出错
 		if r.Err != nil {
-			// 判断是解析失败还是 feed 没内容
-			if strings.Contains(r.Err.Error(), "解析 RSS 失败") || strings.Contains(r.Err.Error(), "请求失败") {
+			// 如果出错，需要区分是 "解析失败" 还是 "feed 无内容" 等
+			if strings.Contains(r.Err.Error(), "解析 RSS 失败") {
 				parseFails = append(parseFails, r.FeedLink)
 			} else if strings.Contains(r.Err.Error(), "没有内容") {
 				feedEmpties = append(feedEmpties, r.FeedLink)
@@ -717,19 +685,20 @@ func main() {
 			continue
 		}
 
-		// 正常拿到Article
+		// 如果正常拿到Article
 		successCount++
-
-		// 检查头像
+		// 判断头像情况
 		if r.Article.Avatar == "" {
 			noAvatarList = append(noAvatarList, r.FeedLink)
+			// 使用默认头像
 			r.Article.Avatar = defaultAvatar
 		} else if r.Article.Avatar == "BROKEN" {
 			brokenAvatarList = append(brokenAvatarList, r.FeedLink)
+			// 使用默认头像
 			r.Article.Avatar = defaultAvatar
 		}
 
-		// 收集到最终集合里
+		// 收集到最终集合里，用于排序
 		itemsWithTime = append(itemsWithTime, struct {
 			article Article
 			t       time.Time
@@ -741,12 +710,12 @@ func main() {
 		})
 	}
 
-	// 4. 按发布时间“倒序”
+	// 4. 按发布时间"倒序"（时间晚的在前面）
 	sort.Slice(itemsWithTime, func(i, j int) bool {
 		return itemsWithTime[i].t.After(itemsWithTime[j].t)
 	})
 
-	// 组装到最终输出
+	// 排序完后组装到最终输出
 	var allItems []Article
 	for _, v := range itemsWithTime {
 		allItems = append(allItems, v.article)
@@ -763,23 +732,23 @@ func main() {
 		return
 	}
 
-	// 6. 上传 data.json 到腾讯云 COS
+	// 6. 上传到 COS
 	err = uploadToCos(ctx, secretID, secretKey, dataURL, jsonBytes)
 	if err != nil {
 		_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 COS 失败: %v", err))
 		return
 	}
 
-	// ====================== 还原“之前的日志输出格式”在此处 ======================
+	// 7. 写执行日志（中文化，并总结）
 	var sb strings.Builder
 	sb.WriteString("本次订阅抓取结果统计如下：\n")
 
 	// 统计成功数
 	sb.WriteString(fmt.Sprintf("✅ 成功抓取 %d 条订阅。\n", successCount))
 
-	// 解析/请求失败统计
+	// 解析失败统计
 	if len(parseFails) > 0 {
-		sb.WriteString(fmt.Sprintf("❌ 有 %d 条订阅解析失败或请求失败：\n", len(parseFails)))
+		sb.WriteString(fmt.Sprintf("❌ 有 %d 条订阅解析失败：\n", len(parseFails)))
 		for _, l := range parseFails {
 			sb.WriteString("  - " + l + "\n")
 		}
@@ -814,6 +783,5 @@ func main() {
 		sb.WriteString("没有任何警告或错误，一切正常。\n")
 	}
 
-	// 写入日志
 	_ = appendLog(ctx, sb.String())
 }
