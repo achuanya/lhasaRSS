@@ -209,8 +209,11 @@ func checkURLAvailable(urlStr string) (bool, error) {
 }
 
 /* ==================== GitHub 日志写入相关函数 ==================== */
-/* (下列函数 appendLog / cleanOldLogs / putGitHubFile 等，与本次问题无关，不变动) */
 
+// 下列函数 appendLog / cleanOldLogs / putGitHubFile 等，均是用于将日志写入 GitHub，或在 GitHub 仓库中清理旧日志等
+// 可以根据需要保留或修改
+
+// getGitHubFileSHA 获取指定仓库内某个路径文件的 SHA；若文件不存在则返回空
 func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
@@ -243,6 +246,7 @@ func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (str
 	return response.SHA, nil
 }
 
+// getGitHubFileContent 获取指定文件的完整内容和 SHA
 func getGitHubFileContent(ctx context.Context, token, owner, repo, path string) (string, string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
@@ -281,6 +285,7 @@ func getGitHubFileContent(ctx context.Context, token, owner, repo, path string) 
 	return string(decoded), response.SHA, nil
 }
 
+// putGitHubFile 创建或更新 GitHub 仓库内的文件
 func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, commitMsg, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	encoded := base64.StdEncoding.EncodeToString([]byte(content))
@@ -325,6 +330,7 @@ func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, 
 	return nil
 }
 
+// deleteGitHubFile 删除 GitHub 仓库内的文件
 func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 
@@ -361,6 +367,7 @@ func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, commit
 	return nil
 }
 
+// listGitHubDir 列出 GitHub 仓库某目录下的文件与信息
 func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struct {
 	Name string `json:"name"`
 	SHA  string `json:"sha"`
@@ -532,82 +539,6 @@ func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data 
 	return err
 }
 
-/* ==================== 新增: 手动获取并修复 RSS 的核心函数 ==================== */
-
-// fetchAndFixFeed 函数：请求 RSS、去除非法控制字符并修复常见缺标签，然后再用 gofeed.Parser 解析
-func fetchAndFixFeed(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
-	// 1. 手动请求 RSS 内容，而不是直接 parser.ParseURL
-	resp, err := http.Get(rssLink)
-	if err != nil {
-		return nil, fmt.Errorf("请求 RSS 失败: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// 2. 如果不是 200 状态码，认为抓取失败
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("RSS 响应非 200 状态码: %d", resp.StatusCode)
-	}
-
-	// 3. 读取 Body 全部数据
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("读取 RSS 内容失败: %w", err)
-	}
-
-	// 4. 移除不被允许的控制字符
-	data = removeInvalidControlChars(data)
-
-	// 5. 补齐常见缺失闭合标签（<rss> / <channel> / <item>）
-	data = fixUnclosedRSSTags(data)
-
-	// 6. 调用 gofeed.Parser.ParseString 来解析修复后的内容
-	feed, parseErr := parser.ParseString(string(data))
-	if parseErr != nil {
-		return nil, fmt.Errorf("解析 RSS 失败: %w", parseErr)
-	}
-
-	return feed, nil
-}
-
-// removeInvalidControlChars 去除 XML 中不被允许的控制字符
-func removeInvalidControlChars(input []byte) []byte {
-	/*
-	   只保留:
-	     - 0x09 (\t)
-	     - 0x0A (\n)
-	     - 0x0D (\r)
-	     - >= 0x20
-	   其余视为非法控制字符，移除
-	*/
-	var output []byte
-	for _, b := range input {
-		if b == 0x09 || b == 0x0A || b == 0x0D || b >= 0x20 {
-			output = append(output, b)
-		}
-	}
-	return output
-}
-
-// fixUnclosedRSSTags 尝试给常见的 RSS 标签补上闭合
-func fixUnclosedRSSTags(input []byte) []byte {
-	str := string(input)
-
-	// 如果有 <rss ...> 但是没有 </rss>，在文末补一个
-	if strings.Contains(str, "<rss") && !strings.Contains(str, "</rss>") {
-		str += "\n</rss>"
-	}
-	// 如果有 <channel> 但是没有 </channel>，在文末补一个
-	if strings.Contains(str, "<channel>") && !strings.Contains(str, "</channel>") {
-		str += "\n</channel>"
-	}
-	// 如果有 <item> 但是没有 </item>，也补一个
-	if strings.Contains(str, "<item") && !strings.Contains(str, "</item>") {
-		str += "\n</item>"
-	}
-
-	return []byte(str)
-}
-
 /* ==================== 主函数 ==================== */
 
 func main() {
@@ -648,8 +579,6 @@ func main() {
 
 	// 用于存放抓取结果
 	resultChan := make(chan feedResult, len(rssLinks))
-
-	// 初始化一个 gofeed.Parser
 	fp := gofeed.NewParser()
 
 	// 2. 并发抓取
@@ -668,16 +597,15 @@ func main() {
 			var fr feedResult
 			fr.FeedLink = rssLink
 
-			// 改动点：使用 fetchAndFixFeed 获取+修复+解析 RSS
-			feed, err := fetchAndFixFeed(rssLink, fp)
+			// 解析 RSS
+			feed, err := fp.ParseURL(rssLink)
 			if err != nil {
 				fr.Err = fmt.Errorf("解析 RSS 失败: %v", err)
 				resultChan <- fr
 				return
 			}
-
-			// 如果没有任何文章
 			if feed == nil || len(feed.Items) == 0 {
+				// 如果没有任何文章
 				fr.Err = fmt.Errorf("该订阅没有内容")
 				resultChan <- fr
 				return
@@ -691,11 +619,11 @@ func main() {
 
 			// 校验头像，如果空就直接用默认头像；如果能访问则用原链接，不能访问也用默认
 			if avatarURL == "" {
-				fr.Article.Avatar = ""
+				fr.Article.Avatar = "" // 先留空，后面在主goroutine里统计
 			} else {
 				ok, _ := checkURLAvailable(avatarURL)
 				if !ok {
-					fr.Article.Avatar = "BROKEN"
+					fr.Article.Avatar = "BROKEN" // 标记为无法访问
 				} else {
 					fr.Article.Avatar = avatarURL
 				}
@@ -712,12 +640,13 @@ func main() {
 				// gofeed 已经帮忙解析
 				pubTime = *latest.PublishedParsed
 			} else if latest.Published != "" {
+				// 自己解析
 				if t, e := parseTime(latest.Published); e == nil {
 					pubTime = t
 				}
 			}
 			fr.ParsedTime = pubTime
-			fr.Article.Published = pubTime.Format("02 Jan 2006") // "09 Mar 2025"
+			fr.Article.Published = pubTime.Format("02 Jan 2006") // 例如 "09 Mar 2025"
 
 			resultChan <- fr
 		}(link)
@@ -745,8 +674,9 @@ func main() {
 
 	// 3. 收集结果
 	for r := range resultChan {
+		// 判断是否出错
 		if r.Err != nil {
-			// 如果出错，需要区分是 "解析失败" 还是 "feed 无内容"
+			// 如果出错，需要区分是 "解析失败" 还是 "feed 无内容" 等
 			if strings.Contains(r.Err.Error(), "解析 RSS 失败") {
 				parseFails = append(parseFails, r.FeedLink)
 			} else if strings.Contains(r.Err.Error(), "没有内容") {
@@ -755,16 +685,20 @@ func main() {
 			continue
 		}
 
+		// 如果正常拿到Article
 		successCount++
 		// 判断头像情况
 		if r.Article.Avatar == "" {
 			noAvatarList = append(noAvatarList, r.FeedLink)
+			// 使用默认头像
 			r.Article.Avatar = defaultAvatar
 		} else if r.Article.Avatar == "BROKEN" {
 			brokenAvatarList = append(brokenAvatarList, r.FeedLink)
+			// 使用默认头像
 			r.Article.Avatar = defaultAvatar
 		}
 
+		// 收集到最终集合里，用于排序
 		itemsWithTime = append(itemsWithTime, struct {
 			article Article
 			t       time.Time
@@ -776,11 +710,12 @@ func main() {
 		})
 	}
 
-	// 4. 按发布时间倒序排列
+	// 4. 按发布时间"倒序"（时间晚的在前面）
 	sort.Slice(itemsWithTime, func(i, j int) bool {
 		return itemsWithTime[i].t.After(itemsWithTime[j].t)
 	})
 
+	// 排序完后组装到最终输出
 	var allItems []Article
 	for _, v := range itemsWithTime {
 		allItems = append(allItems, v.article)
@@ -804,29 +739,38 @@ func main() {
 		return
 	}
 
-	// 7. 写日志总结
+	// 7. 写执行日志（中文化，并总结）
 	var sb strings.Builder
 	sb.WriteString("本次订阅抓取结果统计如下：\n")
+
+	// 统计成功数
 	sb.WriteString(fmt.Sprintf("✅ 成功抓取 %d 条订阅。\n", successCount))
 
+	// 解析失败统计
 	if len(parseFails) > 0 {
 		sb.WriteString(fmt.Sprintf("❌ 有 %d 条订阅解析失败：\n", len(parseFails)))
 		for _, l := range parseFails {
 			sb.WriteString("  - " + l + "\n")
 		}
 	}
+
+	// 无内容
 	if len(feedEmpties) > 0 {
 		sb.WriteString(fmt.Sprintf("⚠️ 有 %d 条订阅为空：\n", len(feedEmpties)))
 		for _, l := range feedEmpties {
 			sb.WriteString("  - " + l + "\n")
 		}
 	}
+
+	// 头像字段为空
 	if len(noAvatarList) > 0 {
 		sb.WriteString(fmt.Sprintf("🖼️ 有 %d 条订阅头像字段为空，已使用默认头像：\n", len(noAvatarList)))
 		for _, l := range noAvatarList {
 			sb.WriteString("  - " + l + "\n")
 		}
 	}
+
+	// 头像无法访问
 	if len(brokenAvatarList) > 0 {
 		sb.WriteString(fmt.Sprintf("🖼️ 有 %d 条订阅头像无法访问，已使用默认头像：\n", len(brokenAvatarList)))
 		for _, l := range brokenAvatarList {
@@ -834,6 +778,7 @@ func main() {
 		}
 	}
 
+	// 若所有错误都没有
 	if len(parseFails) == 0 && len(feedEmpties) == 0 && len(noAvatarList) == 0 && len(brokenAvatarList) == 0 {
 		sb.WriteString("没有任何警告或错误，一切正常。\n")
 	}
