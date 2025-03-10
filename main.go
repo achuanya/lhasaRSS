@@ -20,6 +20,7 @@ import (
 	"github.com/mmcdole/gofeed"
 	"github.com/tencentyun/cos-go-sdk-v5"
 	"golang.org/x/net/html"
+	// "golang.org/x/text/transform" // 若要使用 transform 方式，可解开此行并在下方编写对应逻辑
 )
 
 /* ==================== 数据结构定义 ==================== */
@@ -86,7 +87,7 @@ func getFeedAvatarURL(feed *gofeed.Feed) string {
 	return ""
 }
 
-// fetchBlogLogo 尝试抓取博客主页的 HTML，并从 <head> 中获取最常见的 icon；若没有则 fallback 到 favicon.ico
+// fetchBlogLogo 尝试抓取博客主页的 HTML，并从 <head> 中获取常见的 icon；若没有则 fallback 到 favicon.ico
 func fetchBlogLogo(blogURL string) string {
 	// 1. 请求博客主页
 	resp, err := http.Get(blogURL)
@@ -144,6 +145,7 @@ func fetchBlogLogo(blogURL string) string {
 						contentVal = attr.Val
 					}
 				}
+				// 如果 property="og:image"，则表示一个图片链接
 				if propVal == "og:image" && contentVal != "" {
 					ogImage = contentVal
 				}
@@ -209,9 +211,6 @@ func checkURLAvailable(urlStr string) (bool, error) {
 }
 
 /* ==================== GitHub 日志写入相关函数 ==================== */
-
-// 下列函数 appendLog / cleanOldLogs / putGitHubFile 等，均是用于将日志写入 GitHub，或在 GitHub 仓库中清理旧日志等
-// 可以根据需要保留或修改
 
 // getGitHubFileSHA 获取指定仓库内某个路径文件的 SHA；若文件不存在则返回空
 func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (string, error) {
@@ -409,6 +408,7 @@ func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struc
 
 // appendLog 函数：用于将日志内容写入 GitHub 仓库的 logs/YYYY-MM-DD.log 文件，并清理7天前的日志
 func appendLog(ctx context.Context, rawLogContent string) error {
+	// 从环境变量获取令牌、用户名、仓库名
 	token := os.Getenv("TOKEN")
 	githubUser := os.Getenv("NAME")
 	repoName := os.Getenv("REPOSITORY")
@@ -418,7 +418,7 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 	committerName := githubUser
 	committerEmail := githubUser + "@users.noreply.github.com"
 
-	// 日志文件名：logs/2025-03-10.log
+	// 日志文件名：logs/2025-03-10.log (如 2025-03-10 只是示例)
 	dateStr := time.Now().Format("2006-01-02")
 	logPath := filepath.Join("logs", dateStr+".log")
 
@@ -487,7 +487,23 @@ func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, commit
 	return nil
 }
 
-/* ==================== 工具函数: fetchRSSLinks / uploadToCos ==================== */
+/* ==================== 工具函数 ==================== */
+
+// sanitizeXML 将字符串中的非法 XML 字符过滤掉（或替换为空字符串）
+func sanitizeXML(input string) string {
+	// 这里简单示例：移除 ASCII 范围内的无效控制字符
+	// XML 1.0 中允许的控制字符仅为 \t, \n, \r，其余 < #x20 的控制符均应移除
+	var sb strings.Builder
+	for _, r := range input {
+		// 判断字符是否在允许范围
+		if (r == 0x9) || (r == 0xA) || (r == 0xD) || (r >= 0x20) {
+			sb.WriteRune(r)
+		} else {
+			// 这里直接跳过
+		}
+	}
+	return sb.String()
+}
 
 // fetchRSSLinks 从给定 URL 的文本文件逐行读取 RSS 链接
 func fetchRSSLinks(rssListURL string) ([]string, error) {
@@ -537,6 +553,35 @@ func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data 
 
 	_, err = client.Object.Put(ctx, key, strings.NewReader(string(data)), nil)
 	return err
+}
+
+/* ==================== 核心抓取函数 - 新增“非法字符处理”示例 ==================== */
+
+// fetchAndParseRSS 是一个示例函数：展示如何在读取 RSS Body 后进行非法字符清洗，再交给 gofeed.ParseString。
+func fetchAndParseRSS(rssLink string, fp *gofeed.Parser) (*gofeed.Feed, error) {
+	// 1. 主动发起 HTTP 请求
+	resp, err := http.Get(rssLink)
+	if err != nil {
+		return nil, fmt.Errorf("请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 2. 读取 Body
+	rawBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取失败: %v", err)
+	}
+
+	// 3. 调用 sanitizeXML 去除非法字符
+	rawString := sanitizeXML(string(rawBytes))
+
+	// 4. 使用 gofeed.ParseString 进行解析
+	feed, err := fp.ParseString(rawString)
+	if err != nil {
+		// 如果依然解析失败，可考虑再尝试其他方式，比如 transform 或者忽略错误片段
+		return nil, fmt.Errorf("解析 RSS 失败: %v", err)
+	}
+	return feed, nil
 }
 
 /* ==================== 主函数 ==================== */
@@ -597,10 +642,10 @@ func main() {
 			var fr feedResult
 			fr.FeedLink = rssLink
 
-			// 解析 RSS
-			feed, err := fp.ParseURL(rssLink)
+			// 使用我们自定义的 fetchAndParseRSS（其中包含非法字符清洗逻辑）
+			feed, err := fetchAndParseRSS(rssLink, fp)
 			if err != nil {
-				fr.Err = fmt.Errorf("解析 RSS 失败: %v", err)
+				fr.Err = err
 				resultChan <- fr
 				return
 			}
@@ -619,11 +664,11 @@ func main() {
 
 			// 校验头像，如果空就直接用默认头像；如果能访问则用原链接，不能访问也用默认
 			if avatarURL == "" {
-				fr.Article.Avatar = "" // 先留空，后面在主goroutine里统计
+				fr.Article.Avatar = ""
 			} else {
 				ok, _ := checkURLAvailable(avatarURL)
 				if !ok {
-					fr.Article.Avatar = "BROKEN" // 标记为无法访问
+					fr.Article.Avatar = "BROKEN"
 				} else {
 					fr.Article.Avatar = avatarURL
 				}
@@ -677,7 +722,7 @@ func main() {
 		// 判断是否出错
 		if r.Err != nil {
 			// 如果出错，需要区分是 "解析失败" 还是 "feed 无内容" 等
-			if strings.Contains(r.Err.Error(), "解析 RSS 失败") {
+			if strings.Contains(r.Err.Error(), "解析 RSS 失败") || strings.Contains(r.Err.Error(), "请求失败") {
 				parseFails = append(parseFails, r.FeedLink)
 			} else if strings.Contains(r.Err.Error(), "没有内容") {
 				feedEmpties = append(feedEmpties, r.FeedLink)
@@ -748,7 +793,7 @@ func main() {
 
 	// 解析失败统计
 	if len(parseFails) > 0 {
-		sb.WriteString(fmt.Sprintf("❌ 有 %d 条订阅解析失败：\n", len(parseFails)))
+		sb.WriteString(fmt.Sprintf("❌ 有 %d 条订阅解析失败/请求失败：\n", len(parseFails)))
 		for _, l := range parseFails {
 			sb.WriteString("  - " + l + "\n")
 		}
