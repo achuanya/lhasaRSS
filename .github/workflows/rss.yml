@@ -29,7 +29,7 @@ jobs:
           TENCENT_CLOUD_SECRET_KEY: ${{ secrets.TENCENT_CLOUD_SECRET_KEY }}
           RSS: ${{ secrets.RSS }}
           DATA: ${{ secrets.DATA }}
-          defaultAvatar: ${{ secrets.DEFAULT_AVATAR }}
+          DEFAULT_AVATAR: ${{ secrets.DEFAULT_AVATAR }}
         run: |
           go mod tidy
           go build -o rssfetch main.go
