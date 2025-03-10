@@ -1,6 +1,6 @@
-// 作者: 游钓四方 <haibao1027@gmail.com>
-// 文件: logger.go
-// 说明: 包含与GitHub日志写入和清理旧日志相关的功能
+// Author: 游钓四方 <haibao1027@gmail.com>
+// File: logger.go
+// Description: 包含与GitHub日志写入和清理旧日志相关的功能
 
 package main
 
@@ -17,18 +17,17 @@ import (
 	"time"
 )
 
-// appendLog 函数: 将日志内容追加到 GitHub 仓库中的某一天的日志文件里
-// 游钓四方 <haibao1027@gmail.com>
-// 参数:
+// appendLog 将日志内容追加到 GitHub 仓库中的某一天的日志文件里
+// Description:
+//   - 每次执行时, 都将日志追加到 logs/日期.log 文件中
+//   - 并且会顺带删除 7 天前的日志文件 (cleanOldLogs)
+//
+// Parameters:
 //   - ctx: 上下文 context, 用于控制请求超时、取消等
 //   - rawLogContent: 原始的日志字符串
 //
-// 返回:
+// Returns:
 //   - error: 如果写入或交互出现错误, 则返回错误; 否则返回nil
-//
-// 作用:
-//   - 每次执行时, 都将日志追加到 logs/日期.log 文件中
-//   - 并且会顺带删除 7 天前的日志文件 (cleanOldLogs)
 func appendLog(ctx context.Context, rawLogContent string) error {
 	// 从环境变量获取信息
 	token := os.Getenv("TOKEN")
@@ -86,8 +85,10 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 }
 
 // cleanOldLogs 删除7天前的日志文件
-// 游钓四方 <haibao1027@gmail.com>
-// 参数:
+// Description:
+//   - 遍历 logs 目录下的文件, 如果文件日期是7天前, 则删除
+//
+// Parameters:
 //   - ctx: 上下文 context, 用于控制请求的取消或超时
 //   - token: GitHub的Token
 //   - owner: 仓库所有者
@@ -95,11 +96,8 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 //   - committerName: 提交者名称
 //   - committerEmail: 提交者邮箱
 //
-// 返回:
+// Returns:
 //   - error: 如果清理过程出现错误则返回错误, 否则返回nil
-//
-// 作用:
-//   - 遍历 logs 目录下的文件, 如果文件日期是7天前, 则删除
 func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, committerEmail string) error {
 	files, err := listGitHubDir(ctx, token, owner, repo, "logs")
 	if err != nil {
@@ -135,8 +133,7 @@ func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, commit
 }
 
 // getGitHubFileContent 获取指定文件的完整内容和 SHA
-// 游钓四方 <haibao1027@gmail.com>
-// 返回: (内容, SHA, error)
+// Returns: (内容, SHA, error)
 func getGitHubFileContent(ctx context.Context, token, owner, repo, path string) (string, string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)

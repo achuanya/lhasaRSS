@@ -1,6 +1,6 @@
-// 作者: 游钓四方 <haibao1027@gmail.com>
-// 文件: main.go
-// 说明: 程序入口文件, 读取环境变量, 并进行业务逻辑调度
+// Author: 游钓四方 <haibao1027@gmail.com>
+// File: main.go
+// Description: 程序入口文件, 读取环境变量, 并进行业务逻辑调度
 
 package main
 
@@ -14,8 +14,6 @@ import (
 	"time"
 )
 
-// main 程序主入口
-// 【游钓四方 <haibao1027@gmail.com>】
 func main() {
 	// 创建上下文
 	ctx := context.Background()
@@ -36,7 +34,7 @@ func main() {
 		_ = appendLog(ctx, "[WARN] 未设置 DEFAULT_AVATAR，将可能导致头像为空字符串。")
 	}
 
-	// 1. 拉取RSS列表
+	// 拉取RSS列表
 	rssLinks, err := fetchRSSLinks(rssListURL)
 	if err != nil {
 		_ = appendLog(ctx, fmt.Sprintf("[ERROR] 拉取RSS链接失败: %v", err))
@@ -47,7 +45,7 @@ func main() {
 		return
 	}
 
-	// 2. 并发抓取所有RSS
+	// 并发抓取所有RSS
 	results, problems := fetchAllFeeds(ctx, rssLinks, defaultAvatar)
 
 	// 将成功抓取的项(且无报错)放入一个临时切片, 用于后续排序
@@ -67,12 +65,11 @@ func main() {
 		}{*r.Article, r.ParsedTime})
 	}
 
-	// 3. 按发布时间"倒序"排序
+	// 按发布时间倒序排序
 	sort.Slice(itemsWithTime, func(i, j int) bool {
 		return itemsWithTime[i].t.After(itemsWithTime[j].t)
 	})
 
-	// 组装最终AllData
 	var allItems []Article
 	for _, v := range itemsWithTime {
 		allItems = append(allItems, v.article)
@@ -88,19 +85,18 @@ func main() {
 		return
 	}
 
-	// 4. 上传到 COS
+	// 上传到 COS
 	if err := uploadToCos(ctx, secretID, secretKey, dataURL, jsonBytes); err != nil {
 		_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 COS 失败: %v", err))
 		return
 	}
 
-	// 5. 写执行日志 (总结抓取情况)
+	// 写执行日志
 	logSummary := summarizeResults(successCount, len(rssLinks), problems)
 	_ = appendLog(ctx, logSummary)
 }
 
 // summarizeResults 根据抓取成功数、总数和问题信息, 生成日志字符串
-// 【游钓四方 <haibao1027@gmail.com>】
 func summarizeResults(successCount, total int, problems map[string][]string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("本次订阅抓取结果统计:\n"))

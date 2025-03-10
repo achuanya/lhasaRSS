@@ -1,6 +1,6 @@
-// 作者: 游钓四方 <haibao1027@gmail.com>
-// 文件: cos_upload.go
-// 说明: 使用COS SDK将data.json文件上传到指定Bucket路径
+// Author: 游钓四方 <haibao1027@gmail.com>
+// File: cos_upload.go
+// Description: 使用COS SDK将data.json文件上传到指定Bucket路径
 
 package main
 
@@ -14,15 +14,14 @@ import (
 )
 
 // uploadToCos 使用cos-go-sdk-v5将data.json覆盖上传到指定Bucket
-// 【游钓四方 <haibao1027@gmail.com>】
-// 参数:
+// Parameters:
 //   - ctx       : 上下文
 //   - secretID  : 腾讯云COS SecretID
 //   - secretKey : 腾讯云COS SecretKey
 //   - dataURL   : data.json在COS中的完整路径(包含https://...)
 //   - data      : 要上传的json字节内容
 //
-// 返回:
+// Returns:
 //   - error: 如果上传出现错误, 返回错误; 否则nil
 func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data []byte) error {
 	u, err := url.Parse(dataURL)

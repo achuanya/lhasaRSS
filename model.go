@@ -1,6 +1,6 @@
-// 作者: 游钓四方 <haibao1027@gmail.com>
-// 文件: model.go
-// 说明: 定义数据结构、类型等
+// Author: 游钓四方 <haibao1027@gmail.com>
+// File: model.go
+// Description: 定义数据结构、类型等
 
 package main
 
@@ -8,8 +8,7 @@ import (
 	"time"
 )
 
-// Article 结构体：只保留最关键的字段
-// 游钓四方 <haibao1027@gmail.com>
+// Article 关键字段
 //   - BlogName  : 博客名称
 //   - Title     : 文章标题
 //   - Published : 文章发布时间 (格式如 "09 Mar 2025")
@@ -23,8 +22,7 @@ type Article struct {
 	Avatar    string `json:"avatar"`    // 博客头像
 }
 
-// AllData 结构体：用于最终输出 JSON
-// 游钓四方 <haibao1027@gmail.com>
+// AllData 用于最终输出 JSON
 //   - Items   : 所有文章
 //   - Updated : 数据更新时间（用中文格式字符串）
 type AllData struct {
@@ -33,7 +31,6 @@ type AllData struct {
 }
 
 // feedResult 用于并发抓取时，保存单个 RSS feed 的抓取结果（或错误信息）
-// 游钓四方 <haibao1027@gmail.com>
 type feedResult struct {
 	Article    *Article  // 抓到的最新一篇文章（可能为 nil）
 	FeedLink   string    // RSS 地址

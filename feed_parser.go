@@ -1,6 +1,6 @@
-// 作者: 游钓四方 <haibao1027@gmail.com>
-// 文件: feed_parser.go
-// 说明: 包含解析RSS时间字符串的函数、处理头像URL的函数等
+// Author: 游钓四方 <haibao1027@gmail.com>
+// File: feed_parser.go
+// Description: 包含解析RSS时间字符串的函数、处理头像URL的函数等
 
 package main
 
@@ -16,15 +16,13 @@ import (
 )
 
 // parseTime 尝试用多种格式解析RSS中的时间字符串, 若都失败则返回错误
-// 【游钓四方 <haibao1027@gmail.com>】
-// 参数:
+// Parameters:
 //   - timeStr: 时间字符串
 //
-// 返回:
+// Returns:
 //   - time.Time: 解析出的时间
 //   - error    : 如果所有格式都失败, 返回错误; 否则为nil
 func parseTime(timeStr string) (time.Time, error) {
-	// 定义可能出现的多种时间格式
 	formats := []string{
 		time.RFC1123Z,                   // "Mon, 02 Jan 2006 15:04:05 -0700"
 		time.RFC1123,                    // "Mon, 02 Jan 2006 15:04:05 MST"
@@ -44,11 +42,11 @@ func parseTime(timeStr string) (time.Time, error) {
 }
 
 // getFeedAvatarURL 尝试从feed.Image或者博客主页获取头像地址
-// 【游钓四方 <haibao1027@gmail.com>】
-// 参数:
+// 游钓四方 <haibao1027@gmail.com>
+// Parameters:
 //   - feed: gofeed.Feed 指针, 其中包含Image, Link等字段
 //
-// 返回:
+// Returns:
 //   - string: 若能获取到有效头像, 则返回其URL; 若无法获取则返回空字符串
 func getFeedAvatarURL(feed *gofeed.Feed) string {
 	// 如果 RSS 中存在 <image> 标签且URL不为空, 则优先使用
@@ -64,7 +62,7 @@ func getFeedAvatarURL(feed *gofeed.Feed) string {
 }
 
 // fetchBlogLogo 尝试抓取博客主页, 并从<head>中获取最常见的icon; 若没有则fallback到favicon.ico
-// 【游钓四方 <haibao1027@gmail.com>】
+// 游钓四方 <haibao1027@gmail.com>
 func fetchBlogLogo(blogURL string) string {
 	resp, err := http.Get(blogURL)
 	if err != nil {
@@ -88,7 +86,6 @@ func fetchBlogLogo(blogURL string) string {
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode {
 			tagName := strings.ToLower(n.Data)
-			// 处理<link ...>
 			if tagName == "link" {
 				var relVal, hrefVal string
 				for _, attr := range n.Attr {
@@ -107,7 +104,6 @@ func fetchBlogLogo(blogURL string) string {
 					}
 				}
 			} else if tagName == "meta" {
-				// 处理<meta ...>
 				var propVal, contentVal string
 				for _, attr := range n.Attr {
 					key := strings.ToLower(attr.Key)
@@ -140,7 +136,6 @@ func fetchBlogLogo(blogURL string) string {
 }
 
 // fallbackFavicon 返回 "scheme://host/favicon.ico"
-// 【游钓四方 <haibao1027@gmail.com>】
 func fallbackFavicon(blogURL string) string {
 	u, err := url.Parse(blogURL)
 	if err != nil {
@@ -153,7 +148,6 @@ func fallbackFavicon(blogURL string) string {
 }
 
 // makeAbsoluteURL 将相对路径转换为绝对路径
-// 【游钓四方 <haibao1027@gmail.com>】
 func makeAbsoluteURL(baseStr, refStr string) string {
 	baseURL, err := url.Parse(baseStr)
 	if err != nil {
@@ -167,7 +161,6 @@ func makeAbsoluteURL(baseStr, refStr string) string {
 }
 
 // checkURLAvailable 通过HEAD请求检查URL是否可正常访问(返回200)
-// 【游钓四方 <haibao1027@gmail.com>】
 func checkURLAvailable(urlStr string) (bool, error) {
 	client := &http.Client{
 		Timeout: 5 * time.Second,

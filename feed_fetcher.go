@@ -1,7 +1,10 @@
-// 作者: 游钓四方 <haibao1027@gmail.com>
-// 文件: feed_fetcher.go
-// 说明: 并发抓取RSS的核心逻辑, 包括获取RSS链接列表、抓取Feed等
-//       并新增了对 "解析失败" 的重试机制，使用指数退避，不阻塞整体并发。
+// Author: 游钓四方 <haibao1027@gmail.com>
+// File: feed_fetcher.go
+// Description:
+//   并发抓取RSS Feed的核心逻辑，包括：
+//   1. 从COS中获取RSS文件
+//   2. 并发抓取每个RSS Feed
+//   3. 对解析失败的RSS使用指数退避策略进行重试
 
 package main
 
@@ -19,17 +22,12 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
-// fetchRSSLinks 从给定URL的文本文件中逐行读取RSS链接
-// 【游钓四方 <haibao1027@gmail.com>】
-// 作用:
-//   - 发送HTTP GET请求获取一个纯文本文件
-//   - 将文件内容按行拆分, 每行一个RSS链接
+// fetchRSSLinks 从COS的TXT文件中逐行读取RSS链接
+// Parameters:
+//   - rssListURL: COS中的TXT文件，每行一个URL
 //
-// 参数:
-//   - rssListURL: 存放RSS链接的远程TXT文件URL
-//
-// 返回:
-//   - []string: RSS链接数组
+// Returns:
+//   - []string: 包含所有RSS链接的字符串切片
 //   - error   : 出错时返回错误, 否则nil
 func fetchRSSLinks(rssListURL string) ([]string, error) {
 	resp, err := http.Get(rssListURL)
@@ -50,6 +48,7 @@ func fetchRSSLinks(rssListURL string) ([]string, error) {
 	}
 
 	var links []string
+	// 按行拆分文本，并过滤掉空行
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" {
@@ -59,22 +58,17 @@ func fetchRSSLinks(rssListURL string) ([]string, error) {
 	return links, nil
 }
 
-// fetchAllFeeds 并发抓取所有RSS链接, 返回结果列表
-// 【游钓四方 <haibao1027@gmail.com>】
-// 主要改动:
-//   - 增加了 fetchFeedWithRetry 函数, 对 "解析RSS失败" 进行最多3次重试(指数退避).
-//   - 重试的错误会直接使用 fmt.Printf 打印到 GitHub Actions 控制台, 不会写入日志文件.
+// fetchAllFeeds 并发抓取所有RSS链接, 并返回每个链接的抓取结果及抓取过程中出现的问题统计
+// Purpose:
+//   - ctx           : 上下文，用于控制取消或超时
+//   - rssLinks      : RSS链接的字符串切片
+//   - defaultAvatar : 当获取Feed中头像失败时，使用的默认头像地址
 //
-// 参数:
-//   - ctx           : 上下文
-//   - rssLinks      : RSS链接切片
-//   - defaultAvatar : 当无法获取到头像时使用的默认地址
-//
-// 返回:
-//   - []feedResult         : 每个RSS的抓取结果(含成功或失败)
-//   - map[string][]string  : 记录各种类型的问题(解析失败, 无内容, 头像空等)
+// Returns:
+//   - []feedResult         : 每个RSS链接抓取的结果（包含成功的Feed或错误信息）
+//   - map[string][]string  : 针对解析失败、空Feed、头像缺失的统计记录
 func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string) ([]feedResult, map[string][]string) {
-	// 最大并发数
+	// 限制同时并发抓取的最大协程数
 	maxGoroutines := 10
 	sem := make(chan struct{}, maxGoroutines)
 	var wg sync.WaitGroup
@@ -82,13 +76,14 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 	resultChan := make(chan feedResult, len(rssLinks))
 	fp := gofeed.NewParser()
 
+	// 遍历所有RSS链接，开启协程进行抓取
 	for _, link := range rssLinks {
 		link = strings.TrimSpace(link)
 		if link == "" {
 			continue
 		}
 		wg.Add(1)
-		sem <- struct{}{} // 占用并发槽
+		sem <- struct{}{} // 占用一个并发槽
 
 		go func(rssLink string) {
 			defer wg.Done()
@@ -97,29 +92,22 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 			var fr feedResult
 			fr.FeedLink = rssLink
 
-			// ---------------------------
-			// 1. 使用带重试的函数抓取RSS
-			// ---------------------------
+			// 使用带重试机制的函数抓取RSS Feed
 			feed, err := fetchFeedWithRetry(rssLink, fp, 3, 1*time.Second, 2.0)
 			if err != nil {
-				// 最终仍然失败, 则记为 "解析RSS失败"
 				fr.Err = wrapErrorf(err, "解析RSS失败: %s", rssLink)
 				resultChan <- fr
 				return
 			}
 
-			// ---------------------------
-			// 2. 判断是否为空Feed
-			// ---------------------------
+			// 检查Feed内容是否为空
 			if feed == nil || len(feed.Items) == 0 {
 				fr.Err = wrapErrorf(fmt.Errorf("该订阅没有内容"), "RSS为空: %s", rssLink)
 				resultChan <- fr
 				return
 			}
 
-			// ---------------------------
-			// 3. 获取头像
-			// ---------------------------
+			// 获取Feed的头像信息
 			avatarURL := getFeedAvatarURL(feed)
 			fr.Article = &Article{
 				BlogName: feed.Title,
@@ -137,14 +125,12 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 				}
 			}
 
-			// ---------------------------
-			// 4. 只取最新一篇
-			// ---------------------------
+			// 只取最新一篇文章作为抓取结果
 			latest := feed.Items[0]
 			fr.Article.Title = latest.Title
 			fr.Article.Link = latest.Link
 
-			// 尝试解析发布时间
+			// 尝试解析发布时间，优先使用已解析的时间，其次尝试解析字符串格式的发布时间
 			pubTime := time.Now()
 			if latest.PublishedParsed != nil {
 				pubTime = *latest.PublishedParsed
@@ -156,9 +142,7 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 			fr.ParsedTime = pubTime
 			fr.Article.Published = pubTime.Format("02 Jan 2006")
 
-			// ---------------------------
-			// 5. 返回成功结果
-			// ---------------------------
+			// 返回成功抓取的结果
 			resultChan <- fr
 		}(link)
 	}
@@ -169,7 +153,7 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 		close(resultChan)
 	}()
 
-	// 用于统计解析失败、无内容、头像空等问题
+	// 初始化问题统计：解析失败、Feed为空、头像缺失
 	problems := map[string][]string{
 		"parseFails":   {}, // 解析RSS失败
 		"feedEmpties":  {}, // RSS无内容
@@ -178,6 +162,7 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 	}
 
 	var results []feedResult
+	// 汇总每个RSS抓取的结果，并更新统计
 	for r := range resultChan {
 		// 若有错误
 		if r.Err != nil {
@@ -192,7 +177,7 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 			continue
 		}
 
-		// 没有错误, 正常解析
+		// 对于成功抓取的Feed，若头像为空或不可用则替换为默认头像，并记录到日志
 		if r.Article.Avatar == "" {
 			problems["noAvatar"] = append(problems["noAvatar"], r.FeedLink)
 			r.Article.Avatar = defaultAvatar
@@ -205,22 +190,17 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 	return results, problems
 }
 
-// fetchFeedWithRetry 函数: 对 "解析RSS" 的过程进行重试
-// 【游钓四方 <haibao1027@gmail.com>】
-// 作用:
-//   - 针对网络抖动或RSS源暂时不可用导致的解析失败, 可以进行多次尝试
-//   - 重试时的错误只输出到GitHub Actions控制台, 不写入日志文件
-//
-// 参数:
+// fetchFeedWithRetry 对单个RSS链接进行抓取，在解析失败时，使用指数退避算法进行多次重试
+// Purpose:
 //   - rssLink         : RSS链接
-//   - parser          : gofeed.Parser对象
-//   - maxRetries      : 最大重试次数(含首次尝试)
-//   - baseWait        : 初始等待时间, 如1秒
-//   - backoffMultiple : 指数退避的倍率, 如2.0表示每次翻倍
+//   - parser          : gofeed.Parser实例，用于解析RSS数据
+//   - maxRetries      : 最大尝试次数（包含首次尝试）
+//   - baseWait        : 初始等待时长（如1秒）
+//   - backoffMultiple : 每次重试等待时间的增长倍数（如2.0，即每次等待时间翻倍）
 //
-// 返回:
+// Returns:
 //   - *gofeed.Feed: 成功时返回解析后的Feed对象
-//   - error       : 最终仍然失败时返回错误
+//   - error       : 若所有重试均失败，则返回最后一次的错误信息
 func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, baseWait time.Duration, backoffMultiple float64) (*gofeed.Feed, error) {
 	var lastErr error
 
@@ -229,10 +209,10 @@ func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, b
 		var err error
 
 		if i == 0 {
-			// 第一次直接常规抓取
+			// 第一次尝试直接使用常规抓取方法
 			feed, err = fetchFeed(rssLink, parser)
 		} else {
-			// 后续重试时，采用自定义 User-Agent + 忽略 SSL 证书 + 清洗非法字符
+			// 后续重试时采用：自定义User-Agent、忽略SSL问题、清洗非法字符
 			feed, err = fetchFeedWithFix(rssLink, parser)
 		}
 
@@ -240,11 +220,10 @@ func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, b
 			return feed, nil // 解析成功，直接返回
 		}
 
-		// 记录失败原因
 		lastErr = err
 		fmt.Printf("[Retry %d/%d] RSS parse fail for %s: %v\n", i+1, maxRetries, rssLink, err)
 
-		// 指数退避（除最后一次外）
+		// 若未到最后一次重试，则等待一定时间后再重试
 		if i < maxRetries-1 {
 			wait := time.Duration(float64(baseWait) * math.Pow(backoffMultiple, float64(i)))
 			time.Sleep(wait)
@@ -254,12 +233,23 @@ func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, b
 	return nil, lastErr
 }
 
-// fetchFeedWithFix 采用修复策略：自定义 User-Agent + 允许跳过 SSL + 清洗非法字符
+// fetchFeedWithFix 采用修复策略抓取RSS：
+//   - 使用自定义HTTP客户端忽略SSL证书问题
+//   - 设置自定义User-Agent
+//   - 清洗响应数据中的非法XML字符
+//
+// Purpose:
+//   - rssLink : RSS链接地址
+//   - parser  : gofeed.Parser实例，用于解析RSS数据
+//
+// Returns:
+//   - *gofeed.Feed: 解析后的Feed对象
+//   - error       : 若抓取或解析失败，则返回错误信息
 func fetchFeedWithFix(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
-	// 自定义 HTTP 客户端，忽略 SSL 证书问题
+	// 自定义HTTP客户端，允许跳过SSL证书验证
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // 忽略证书问题
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		},
 		Timeout: 10 * time.Second,
 	}
@@ -269,7 +259,7 @@ func fetchFeedWithFix(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, erro
 		return nil, err
 	}
 
-	// 设置自定义 User-Agent
+	// 设置自定义User-Agent
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; RSSFetcher/1.0)")
 
 	resp, err := client.Do(req)
@@ -292,18 +282,14 @@ func fetchFeedWithFix(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, erro
 	return parser.ParseString(string(cleanData))
 }
 
-// fetchFeed 函数: 先HTTP GET获取RSS内容, 去除非法XML字符后再用 gofeed.Parser 解析
-// 【游钓四方 <haibao1027@gmail.com>】
-// 作用:
-//   - 解决极少数RSS源中出现类似 "illegal character code U+0008" 等控制字符导致XML报错
-//   - 先将响应Body全部读取, 调用 removeInvalidXMLChars 函数清洗后, 再 parser.ParseString()
-//
-// 参数:
+// fetchFeed 触发指数退避算法时，去除非法XML字符，再用 gofeed.Parser 解析
+// Purpose:
 //   - rssLink : RSS链接
-//   - parser  : gofeed.Parser 对象
+//   - parser  : gofeed.Parser实例，用于解析RSS数据
 //
-// 返回:
+// Returns:
 //   - *gofeed.Feed : 成功时返回Feed对象, 否则error
+//   - error        : 若请求或解析失败，则返回错误信息
 func fetchFeed(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
 	resp, err := http.Get(rssLink)
 	if err != nil {
@@ -320,19 +306,18 @@ func fetchFeed(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
 		return nil, err
 	}
 
-	// 对RSS数据进行非法XML字符过滤，尤其是U+0008、U+0000等控制字符
+	// 过滤RSS数据中的非法XML控制字符（例如U+0008、U+0000等）
 	cleanData := removeInvalidXMLChars(rawData)
 	return parser.ParseString(string(cleanData))
 }
 
-// removeInvalidXMLChars 函数: 去除常见非法的控制字符, 避免XML解析报错
-// 【游钓四方 <haibao1027@gmail.com>】
-// 说明:
-//   - XML 1.0 对字符有严格限制, ASCII 0~8、11~12、14~31 都是不被允许的
-//   - 这里简单做个过滤, 将这些字节全部剔除; 对大多数情况是安全的, 不会影响正常文本.
+// removeInvalidXMLChars 过滤掉数据中非法的XML控制字符，避免解析错误
+// Purpose:
+//   - data: 原始字节数据
+//
+// Returns:
+//   - []byte: 过滤后的数据
 func removeInvalidXMLChars(data []byte) []byte {
-	// 0x09(TAB)、0x0A(\n)、0x0D(\r) 在XML 1.0中是合法的控制字符, 其他 <0x20 的都非法
-	// 参考: https://www.w3.org/TR/xml11/#charsets
 	filtered := make([]byte, 0, len(data))
 	for _, b := range data {
 		if b == 0x09 || b == 0x0A || b == 0x0D || b >= 0x20 {

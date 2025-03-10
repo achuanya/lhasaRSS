@@ -1,6 +1,6 @@
-// 作者: 游钓四方 <haibao1027@gmail.com>
-// 文件: github_utils.go
-// 说明: 主要是与GitHub进行文件操作的工具函数 (获取SHA、更新文件、删除文件等)
+// Author: 游钓四方 <haibao1027@gmail.com>
+// File: github_utils.go
+// Description: 主要是与GitHub进行文件操作的工具函数 (获取SHA、更新文件、删除文件等)
 
 package main
 
@@ -15,7 +15,6 @@ import (
 )
 
 // getGitHubFileSHA 获取指定仓库内某个路径文件的SHA; 若文件不存在则返回空
-// 游钓四方 <haibao1027@gmail.com>
 func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
@@ -50,8 +49,7 @@ func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (str
 }
 
 // putGitHubFile 创建或更新GitHub仓库内文件
-// 游钓四方 <haibao1027@gmail.com>
-// 参数:
+// Parameters:
 //   - ctx              : 上下文
 //   - token            : GitHub Token
 //   - owner, repo      : 仓库所有者 & 仓库名
@@ -61,7 +59,7 @@ func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (str
 //   - committerName    : 提交者姓名
 //   - committerEmail   : 提交者邮箱
 //
-// 返回:
+// Returns:
 //   - error: 如果出现错误, 则返回相应的错误, 否则为nil
 func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, commitMsg, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
@@ -108,8 +106,7 @@ func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, 
 }
 
 // deleteGitHubFile 删除GitHub仓库内的文件
-// 游钓四方 <haibao1027@gmail.com>
-// 参数:
+// Parameters:
 //   - ctx              : 上下文
 //   - token            : GitHub Token
 //   - owner, repo      : 仓库所有者 & 仓库名
@@ -117,7 +114,7 @@ func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, 
 //   - committerName    : 提交者姓名
 //   - committerEmail   : 提交者邮箱
 //
-// 返回:
+// Returns:
 //   - error: 如果出现错误, 则返回错误; 否则为nil
 func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
@@ -156,8 +153,7 @@ func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, commit
 }
 
 // listGitHubDir 列出GitHub仓库某目录下的文件与信息
-// 游钓四方 <haibao1027@gmail.com>
-// 返回: 列表, 每个元素包含文件/目录名, SHA, 类型等; 若出错则error非nil
+// Returns: 列表, 每个元素包含文件/目录名, SHA, 类型等; 若出错则error非nil
 func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struct {
 	Name string `json:"name"`
 	SHA  string `json:"sha"`
@@ -198,7 +194,6 @@ func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struc
 }
 
 // decodeBase64 对Base64字符串进行解码, 并返回解码后的文本
-// 游钓四方 <haibao1027@gmail.com>
 func decodeBase64(b64str string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(b64str)
 	if err != nil {
