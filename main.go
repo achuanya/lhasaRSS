@@ -28,7 +28,7 @@ import (
 type Article struct {
 	BlogName  string `json:"blog_name"` // 博客名称
 	Title     string `json:"title"`     // 文章标题
-	Published string `json:"published"` // 文章发布时间
+	Published string `json:"published"` // 文章发布时间 (已格式化为 "09 Mar 2025")
 	Link      string `json:"link"`      // 文章链接
 	Avatar    string `json:"avatar"`    // 博客头像
 }
@@ -36,16 +36,40 @@ type Article struct {
 // AllData 结构体：用于最终输出 JSON
 type AllData struct {
 	Items   []Article `json:"items"`   // 所有文章
-	Updated time.Time `json:"updated"` // 数据更新时间
+	Updated string    `json:"updated"` // 数据更新时间（使用中文格式的字符串）
 }
 
 /* -------------------- 并发抓取所需结构体 -------------------- */
 
 // feedResult 用于并发抓取时，保存单个 RSS feed 的抓取结果（或错误信息）
 type feedResult struct {
-	Article  *Article // 抓到的最新一篇文章（可能为 nil）
-	FeedLink string   // RSS 地址
-	Err      error    // 抓取过程中的错误
+	Article    *Article  // 抓到的最新一篇文章（可能为 nil）
+	FeedLink   string    // RSS 地址
+	Err        error     // 抓取过程中的错误
+	ParsedTime time.Time // 解析得到的发布时间，用于后续排序
+}
+
+/* -------------------- 时间解析相关函数 -------------------- */
+
+// parseTime 尝试用多种格式解析 RSS 中的时间字符串
+func parseTime(timeStr string) (time.Time, error) {
+	// 定义可能出现的多种时间格式
+	formats := []string{
+		time.RFC1123Z,                     // "Mon, 02 Jan 2006 15:04:05 -0700"
+		time.RFC1123,                      // "Mon, 02 Jan 2006 15:04:05 MST"
+		time.RFC3339,                      // "2006-01-02T15:04:05Z07:00"
+		"2006-01-02T15:04:05.000Z07:00",   // 例如 "2025-02-09T13:20:27.000Z"
+		"Mon, 02 Jan 2006 15:04:05 +0000", // 有些 RSS 也可能是这种写法
+	}
+
+	// 依次尝试解析
+	for _, f := range formats {
+		if t, err := time.Parse(f, timeStr); err == nil {
+			return t, nil
+		}
+	}
+	// 如果都失败，就返回错误
+	return time.Time{}, fmt.Errorf("无法解析时间: %s", timeStr)
 }
 
 /* -------------------- 头像处理相关函数 -------------------- */
@@ -115,8 +139,8 @@ func fetchBlogLogo(blogURL string) string {
 						iconHref = hrefVal
 					}
 				}
-				// 处理 <meta ...> 标签
 			} else if tagName == "meta" {
+				// 处理 <meta ...> 标签
 				var propVal, contentVal string
 				for _, attr := range n.Attr {
 					switch strings.ToLower(attr.Key) {
@@ -640,20 +664,16 @@ func main() {
 
 	// 2. 并发抓取每个 RSS 链接，只抓最新文章
 	for _, link := range rssLinks {
-		// 去除空行
 		link = strings.TrimSpace(link)
 		if link == "" {
 			continue
 		}
 		wg.Add(1)
+		sem <- struct{}{} // 占用一个并发槽
 
-		// 限制并发
-		sem <- struct{}{}
-
-		// 启动 goroutine
 		go func(rssLink string) {
 			defer wg.Done()
-			defer func() { <-sem }()
+			defer func() { <-sem }() // 任务结束后释放一个并发槽
 
 			// 创建一个结果对象
 			fr := feedResult{FeedLink: rssLink}
@@ -666,7 +686,7 @@ func main() {
 				return
 			}
 			if feed == nil || len(feed.Items) == 0 {
-				// feed.Items 为空，直接返回
+				// feed.Items 为空，直接返回错误
 				fr.Err = fmt.Errorf("订阅链接: %s 没有任何文章", rssLink)
 				resultChan <- fr
 				return
@@ -689,11 +709,29 @@ func main() {
 			// 只取最新的一篇文章
 			latest := feed.Items[0]
 
+			// 尝试解析发布时间；如果失败，就标记为当前时间（或其他默认值）
+			pubTime, err := time.Now(), error(nil)
+			if latest.PublishedParsed != nil {
+				// 有些 RSS 解析器会自动解析出 time.Time
+				pubTime = *latest.PublishedParsed
+			} else if latest.Published != "" {
+				// 如果 PublishedParsed 为空，则自己来解析
+				if t, e := parseTime(latest.Published); e == nil {
+					pubTime = t
+				}
+			}
+
+			// 将解析到的时间存入 fr，供后续排序使用
+			fr.ParsedTime = pubTime
+
+			// 格式化成 "09 Mar 2025"
+			formattedPub := pubTime.Format("02 Jan 2006")
+
 			// 构造 Article 实例
 			fr.Article = &Article{
 				BlogName:  feed.Title,
 				Title:     latest.Title,
-				Published: latest.Published,
+				Published: formattedPub, // 使用格式化后的发布时间字符串
 				Link:      latest.Link,
 				Avatar:    avatarURL,
 			}
@@ -710,6 +748,13 @@ func main() {
 
 	// 用来存放所有成功抓取的 Article
 	var allItems []Article
+	// 额外存储 (Article, 真实发布时间) 供排序
+	type itemWithTime struct {
+		article Article
+		t       time.Time
+	}
+	var itemsWithTime []itemWithTime
+
 	// 收集抓取失败的信息
 	var failedList []string
 
@@ -722,26 +767,30 @@ func main() {
 		}
 		// 否则就把成功抓到的 article 加到 allItems
 		if r.Article != nil {
-			allItems = append(allItems, *r.Article)
+			itemsWithTime = append(itemsWithTime, itemWithTime{
+				article: *r.Article,
+				t:       r.ParsedTime,
+			})
 		}
 	}
 
-	// 4. 按发布时间降序排序（最新的在前）
-	//   这里以 RFC1123Z 作为示例格式进行解析，
-	//   如果源 RSS 的时间格式不统一，需要更灵活的解析或容错
-	sort.Slice(allItems, func(i, j int) bool {
-		// 尝试解析时间
-		ti, _ := time.Parse(time.RFC1123Z, allItems[i].Published)
-		tj, _ := time.Parse(time.RFC1123Z, allItems[j].Published)
-		// ti 在后，则返回 false，保证最新在前
-		return ti.After(tj)
+	// 4. 按发布时间升序（越早的排前）排序
+	sort.Slice(itemsWithTime, func(i, j int) bool {
+		return itemsWithTime[i].t.Before(itemsWithTime[j].t)
 	})
+
+	// 排序后再赋值回 allItems
+	for _, v := range itemsWithTime {
+		allItems = append(allItems, v.article)
+	}
 
 	// 5. 组装最终输出的 JSON
 	allData := AllData{
-		Items:   allItems,
-		Updated: time.Now(),
+		Items: allItems,
+		// 使用本地时间并格式化成中文方式
+		Updated: time.Now().Local().Format("2006年01月02日 15:04:05"),
 	}
+
 	jsonBytes, err := json.MarshalIndent(allData, "", "  ")
 	if err != nil {
 		_ = appendLog(ctx, fmt.Sprintf("[ERROR] JSON 序列化失败: %v", err))
