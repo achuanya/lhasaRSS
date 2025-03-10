@@ -539,6 +539,94 @@ func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data 
 	return err
 }
 
+/* ==================== 下面是我们新增的修复相关逻辑 ==================== */
+
+// fetchAndFixFeed 函数：请求 RSS、去除非法控制字符并修复常见缺标签，然后再用 gofeed.Parser 解析
+func fetchAndFixFeed(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
+	// 1. 手动请求 RSS 内容，而不是 fp.ParseURL
+	resp, err := http.Get(rssLink)
+	if err != nil {
+		// 返回上层时，带上原始错误信息
+		return nil, fmt.Errorf("请求 RSS 失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 2. 如果不是 200 状态码，认为抓取失败
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("RSS 响应非 200 状态码: %d", resp.StatusCode)
+	}
+
+	// 3. 读取 Body 全部数据
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("读取 RSS 内容失败: %w", err)
+	}
+
+	// 4. 移除 RSS/XML 中不被允许的控制字符（除 \t, \n, \r 以外）
+	data = removeInvalidControlChars(data)
+
+	// 5. 修复常见的 RSS 结尾缺标签
+	data = fixUnclosedRSSTags(data)
+
+	// 6. 调用 gofeed.Parser 的 ParseString 方法来解析修复后的 RSS 文本
+	feed, parseErr := parser.ParseString(string(data))
+	if parseErr != nil {
+		// 如果依然报错，说明无法修复，直接返回错误
+		return nil, fmt.Errorf("解析 RSS 失败: %w", parseErr)
+	}
+
+	// 7. 正常解析成功，返回 feed
+	return feed, nil
+}
+
+// removeInvalidControlChars 用于去除 XML 中不允许的控制字符 (ASCII 范围内0x20以下，保留 \t, \n, \r)
+func removeInvalidControlChars(input []byte) []byte {
+	/*
+	   这一函数会逐字节检查，对于以下情况保留：
+	     - b == 0x09 (\t)
+	     - b == 0x0A (\n)
+	     - b == 0x0D (\r)
+	     - b >= 0x20
+	   其余控制字符（尤其是0x00~0x08, 0x0B, 0x0C, 0x0E~0x1F）将被移除
+	*/
+	var output []byte
+	for _, b := range input {
+		if b == 0x09 || b == 0x0A || b == 0x0D || b >= 0x20 {
+			output = append(output, b)
+		}
+	}
+	return output
+}
+
+// fixUnclosedRSSTags 主要针对 RSS 常见的几个标签缺少闭合时，简单补齐
+func fixUnclosedRSSTags(input []byte) []byte {
+	/*
+	   这里只是非常粗略地做一下补救：
+	     1. 如果出现 <rss ...> 却没有 </rss>，则在文末补一个
+	     2. 如果出现 <channel> 却没有 </channel>，也补一个
+	     3. 如果出现 <item>（不含子元素个数判断），却没有 </item>，也补一个
+	   注意：这种做法非常简单，只能修复最后一个没闭合的标签，多余的情形不处理
+	*/
+	str := string(input)
+
+	// 1. 检测 <rss> 或 <rss ...> 是否存在，但没有 </rss>
+	if strings.Contains(str, "<rss") && !strings.Contains(str, "</rss>") {
+		str += "\n</rss>"
+	}
+
+	// 2. 检测 <channel> 未闭合
+	if strings.Contains(str, "<channel>") && !strings.Contains(str, "</channel>") {
+		str += "\n</channel>"
+	}
+
+	// 3. 检测 <item> 未闭合
+	if strings.Contains(str, "<item") && !strings.Contains(str, "</item>") {
+		str += "\n</item>"
+	}
+
+	return []byte(str)
+}
+
 /* ==================== 主函数 ==================== */
 
 func main() {
@@ -597,15 +685,16 @@ func main() {
 			var fr feedResult
 			fr.FeedLink = rssLink
 
-			// 解析 RSS
-			feed, err := fp.ParseURL(rssLink)
+			// 改动点：调用我们自定义的 fetchAndFixFeed 来抓取并修复 RSS
+			feed, err := fetchAndFixFeed(rssLink, fp)
 			if err != nil {
 				fr.Err = fmt.Errorf("解析 RSS 失败: %v", err)
 				resultChan <- fr
 				return
 			}
+
+			// 如果没有任何文章
 			if feed == nil || len(feed.Items) == 0 {
-				// 如果没有任何文章
 				fr.Err = fmt.Errorf("该订阅没有内容")
 				resultChan <- fr
 				return
@@ -646,7 +735,7 @@ func main() {
 				}
 			}
 			fr.ParsedTime = pubTime
-			fr.Article.Published = pubTime.Format("02 Jan 2006") // 例如 "09 Mar 2025"
+			fr.Article.Published = pubTime.Format("02 Jan 2006") // 例如 "09 Mar 2006"
 
 			resultChan <- fr
 		}(link)
