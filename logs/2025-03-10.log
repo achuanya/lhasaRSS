@@ -22,3 +22,4 @@
 [2025-03-10 05:49:57] - 订阅链接: https://1900.live/rss.xml，错误: Get "https://1900.live/rss.xml": dial tcp 182.254.147.27:443: i/o timeout
 [2025-03-10 05:49:57] - 订阅链接: https://tcxx.info/feed，错误: http error: 403 Forbidden
 [2025-03-10 05:49:57] - 订阅链接: https://tumutanzi.com/feed，错误: http error: 403 Forbidden
+[2025-03-10 06:16:22] [WARN] 未设置 DEFAULT_AVATAR，将可能导致没有头像时出现空字符串。
