@@ -32,6 +32,6 @@ jobs:
           DEFAULT_AVATAR: ${{ secrets.DEFAULT_AVATAR }}
         run: |
           go mod tidy
-          go build -o rssfetch main.go
+          go build -o rssfetch .
           ./rssfetch
           echo "=== Done RSS Fetch ==="
