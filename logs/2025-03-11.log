@@ -91,3 +91,9 @@
 [2025-03-11 14:17:34] - https://www.loyhome.com/feed
 [2025-03-11 14:52:43] [WARN] RSS列表为空, 无需抓取
 [2025-03-11 14:57:15] [ERROR] 拉取RSS链接失败: /home/runner/work/lhasaRSS/lhasaRSS/feed_fetcher.go:41 => 无法获取RSS列表文件: data/rss.txt | 原因: Get "data/rss.txt": unsupported protocol scheme ""
+[2025-03-11 15:00:19] 本次订阅抓取结果统计:
+[2025-03-11 15:00:19] 共 25 条RSS, 成功抓取 24 条.
+[2025-03-11 15:00:19] ✘ 有 1 条订阅解析失败:
+[2025-03-11 15:00:19] - https://tcxx.info/feed
+[2025-03-11 15:00:19] ✘ 有 1 条订阅头像无法访问, 已使用默认头像:
+[2025-03-11 15:00:19] - https://www.loyhome.com/feed
