@@ -17,16 +17,6 @@ import (
 )
 
 // uploadToCos 使用cos-go-sdk-v5将data.json覆盖上传到指定Bucket
-//
-// Parameters:
-//   - ctx       : 上下文，用于在需要时取消操作
-//   - secretID  : 腾讯云COS的 SecretID，用于身份认证
-//   - secretKey : 腾讯云COS的 SecretKey，用于身份认证
-//   - dataURL   : data.json 在COS中的完整路径(包含 https://...)
-//   - data      : 要上传的 JSON 字节内容
-//
-// Returns:
-//   - error: 如果上传出现错误, 返回错误; 否则nil
 func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data []byte) error {
 	u, err := url.Parse(dataURL)
 	if err != nil {

@@ -94,21 +94,22 @@ func parseLinesToLinks(data []byte) []string {
 	return links
 }
 
-// fetchAllFeeds 并发抓取所有RSS链接, 并返回每个链接的抓取结果及抓取过程中出现的问题统计
+// fetchAllFeeds 并发抓取所有RSS链接，返回抓取结果及统计信息
 //
 // Description:
 //
-//	该函数会读取传入的所有RSS链接，使用一定的并发度（maxGoroutines）来抓取每个RSS，
-//	并在抓取过程中对解析失败等情况进行统计，同时对头像缺失等情况进行处理（替换为默认头像）
+//	该函数读取传入的所有RSS链接，使用10路并发进行抓取
+//	在抓取过程中对解析失败、内容为空等情况进行统计
+//	若抓取的RSS头像缺失或无法访问，将替换为默认头像
 //
 // Parameters:
-//   - ctx           : 上下文，用于控制取消或超时
-//   - rssLinks      : RSS链接的字符串切片
-//   - defaultAvatar : 当获取Feed中头像失败时，使用的默认头像地址
+//   - ctx           : 上下文，用于控制网络请求的取消或超时
+//   - rssLinks      : RSS链接的字符串切片，每个链接代表一个RSS源
+//   - defaultAvatar : 备用头像地址，在抓取头像失败或不可用时使用
 //
 // Returns:
-//   - []feedResult         : 每个RSS链接抓取的结果（包含成功的Feed或错误信息）
-//   - map[string][]string  : 针对解析失败、空Feed、头像缺失、头像不可用等的统计记录
+//   - []feedResult         : 每个RSS链接抓取的结果（包含成功的Feed及其文章或错误信息）
+//   - map[string][]string  : 各种问题的统计记录（解析失败、内容为空、头像缺失、头像不可用）
 func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string) ([]feedResult, map[string][]string) {
 	// 设置最大并发量，以信道（channel）信号量的方式控制
 	maxGoroutines := 10
