@@ -1,11 +1,5 @@
 # lhasaRSS —— 高效稳定的RSS聚合解决方案
 
-**效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
-
-lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预先设定的 RSS 源列表中并发抓取最新文章，自动提取博客名称、文章标题、发布时间、文章链接及头像等信息，并将数据按时间倒序存储到 `data.json` 文件中
-
-随后上传至 Github 仓库亦或是腾讯云 COS 指定路径。同时，每次运行过程中的日志信息都会记录到 GitHub 仓库中（按日期生成独立日志文件），方便您随时查看和追溯历史记录
-
 <div align="center">
   <a href="https://996.icu" target="_blank">
       <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
@@ -14,6 +8,12 @@ lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预
   <img src="https://img.shields.io/github/actions/workflow/status/achuanya/lhasaRSS/rss_update.yml?branch=main" alt="GitHub Workflow Status" />
   <img src="https://img.shields.io/github/issues/achuanya/lhasaRSS" alt="GitHub issues" />
 </div>
+
+lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预先设定的 RSS 源列表中并发抓取最新文章，自动提取博客名称、文章标题、发布时间、文章链接及头像等信息，并将数据按时间倒序存储到 `data.json` 文件中
+
+随后上传至 Github 仓库亦或是腾讯云 COS 指定路径。同时，每次运行过程中的日志信息都会记录到 GitHub 仓库中（按日期生成独立日志文件），方便您随时查看和追溯历史记录
+
+**效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
 
 ---
 
