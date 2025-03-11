@@ -31,9 +31,10 @@ lhasaRSS
 ├── model.go         # 数据结构定义 (Article, AllData, feedResult)
 ├── wrap_error.go    # 包装错误信息时附带文件名和行号
 └── go.mod           # Go Modules 依赖管理
-``
+```
 
-2. **环境变量**
+2. 环境变量
+
 lhasaRSS 主要通过以下环境变量来进行配置：
 
 | 变量名称                     | 说明                                                                                                                | 必填条件                                                                                                          |
