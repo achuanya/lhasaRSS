@@ -4,11 +4,11 @@
   <a href="https://996.icu" target="_blank">
       <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
   </a>
+  <img src="https://img.shields.io/github/license/achuanya/lhasaRSS" alt="GitHub license" />
   <img src="https://img.shields.io/github/actions/workflow/status/achuanya/lhasaRSS/rss_update.yml?branch=main" alt="GitHub Workflow Status" />
   <img src="https://img.shields.io/github/issues/achuanya/lhasaRSS" alt="GitHub issues" />
   <img src="https://img.shields.io/github/last-commit/achuanya/lhasaRSS" alt="GitHub last commit" />
   <img src="https://img.shields.io/github/stars/achuanya/lhasaRSS?style=social" alt="GitHub stars" />
-  <img src="https://img.shields.io/github/license/achuanya/lhasaRSS" alt="GitHub license" />
 </div>
 
 **效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
