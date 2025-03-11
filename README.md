@@ -1,5 +1,9 @@
 # lhasaRSS —— 高效稳定的RSS聚合解决方案
 
+<a href="https://996.icu" target="_blank">
+    <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
+</a>
+
 **效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
 
 lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预先设定的 RSS 源列表中并发抓取最新文章，自动提取博客名称、文章标题、发布时间、文章链接及头像等信息，并将数据按时间倒序存储到 `data.json` 文件中
