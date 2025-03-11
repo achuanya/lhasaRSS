@@ -33,7 +33,7 @@ func LoadConfig() *Config {
 	cfg := &Config{
 		TencentSecretID:  os.Getenv("TENCENT_CLOUD_SECRET_ID"),
 		TencentSecretKey: os.Getenv("TENCENT_CLOUD_SECRET_KEY"),
-		RssListURL:       os.Getenv("RSS"),
+		RssListURL:       "data/rss.txt",
 		DataURL:          os.Getenv("DATA"),
 		DefaultAvatar:    os.Getenv("DEFAULT_AVATAR"),
 		SaveTarget:       os.Getenv("SAVE_TARGET"),
@@ -42,6 +42,7 @@ func LoadConfig() *Config {
 		GitHubName:  os.Getenv("NAME"),
 		GitHubRepo:  os.Getenv("REPOSITORY"),
 	}
+
 	if cfg.SaveTarget == "" {
 		cfg.SaveTarget = "GITHUB" // 没有显式设置就默认 GITHUB
 	} else {
