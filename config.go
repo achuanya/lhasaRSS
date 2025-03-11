@@ -59,7 +59,7 @@ func LoadConfig() *Config {
 
 	// 默认值处理
 	if cfg.RssSource == "" {
-		// 若未显式设置，则默认从 COS 读取 RSS 列表
+		// 若未显式设置，则默认从 GITHUB 读取 RSS 列表
 		cfg.RssSource = "GITHUB"
 	}
 	if cfg.SaveTarget == "" {
