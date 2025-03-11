@@ -33,7 +33,7 @@ func LoadConfig() *Config {
 	cfg := &Config{
 		TencentSecretID:  os.Getenv("TENCENT_CLOUD_SECRET_ID"),
 		TencentSecretKey: os.Getenv("TENCENT_CLOUD_SECRET_KEY"),
-		RssListURL:       "data/rss.txt",
+		RssListURL:       os.Getenv("RSS"),
 		DataURL:          os.Getenv("DATA"),
 		DefaultAvatar:    os.Getenv("DEFAULT_AVATAR"),
 		SaveTarget:       os.Getenv("SAVE_TARGET"),
