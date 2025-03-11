@@ -33,7 +33,7 @@ lhasaRSS
 └── go.mod           # Go Modules 依赖管理
 ```
 
-2. 环境变量
+2. **环境变量**
 
 lhasaRSS 主要通过以下环境变量来进行配置：
 
