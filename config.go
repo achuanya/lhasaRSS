@@ -74,28 +74,31 @@ func LoadConfig() *Config {
 //
 // Description:
 //
-//	本方法可在 main() 中调用，一次性校验所有必需环境变量，
-//	避免在其他地方重复判断
+//	本方法可在 main() 中调用，一次性校验所有必需环境变量
 func (cfg *Config) Validate() error {
 	var missing []string
 
-	if cfg.TencentSecretID == "" {
-		missing = append(missing, "TENCENT_CLOUD_SECRET_ID")
-	}
-	if cfg.TencentSecretKey == "" {
-		missing = append(missing, "TENCENT_CLOUD_SECRET_KEY")
+	// 只有当 RSS_SOURCE 或 SAVE_TARGET 包含 "COS" 时，才需要腾讯云相关信息
+	if cfg.RssSource == "COS" || cfg.SaveTarget == "COS" {
+		if cfg.TencentSecretID == "" {
+			missing = append(missing, "TENCENT_CLOUD_SECRET_ID")
+		}
+		if cfg.TencentSecretKey == "" {
+			missing = append(missing, "TENCENT_CLOUD_SECRET_KEY")
+		}
 	}
 
-	// RSS_SOURCE与RSS
-	if cfg.RssListURL == "" {
+	// 当 RSS_SOURCE = COS 时，必须提供 RSS (即 RssListURL)
+	if cfg.RssSource == "COS" && cfg.RssListURL == "" {
 		missing = append(missing, "RSS")
 	}
 
-	if cfg.DataURL == "" {
+	// 当 SAVE_TARGET = COS 时，必须提供 DATA (即 DataURL)
+	if cfg.SaveTarget == "COS" && cfg.DataURL == "" {
 		missing = append(missing, "DATA")
 	}
 
-	// 如果保存是 GITHUB, 则要求 GitHubToken, GitHubName, GitHubRepo 均不可为空
+	// 如果保存到 GITHUB，则必须有 GitHub API 配置
 	if cfg.SaveTarget == "GITHUB" {
 		if cfg.GitHubToken == "" {
 			missing = append(missing, "TOKEN")
