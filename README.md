@@ -4,6 +4,15 @@
     <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
 </a>
 
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/achuanya/lhasaRSS/rss_update.yml?branch=main)  
+![GitHub issues](https://img.shields.io/github/issues/achuanya/lhasaRSS)  
+![GitHub last commit](https://img.shields.io/github/last-commit/achuanya/lhasaRSS)  
+![GitHub stars](https://img.shields.io/github/stars/achuanya/lhasaRSS?style=social)  
+![GitHub license](https://img.shields.io/github/license/achuanya/lhasaRSS)  
+![Go version](https://img.shields.io/github/go-mod/go-version/achuanya/lhasaRSS)  
+![Code size](https://img.shields.io/github/languages/code-size/achuanya/lhasaRSS)  
+![Lines of code](https://img.shields.io/tokei/lines/github/achuanya/lhasaRSS)  
+
 **效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
 
 lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预先设定的 RSS 源列表中并发抓取最新文章，自动提取博客名称、文章标题、发布时间、文章链接及头像等信息，并将数据按时间倒序存储到 `data.json` 文件中
