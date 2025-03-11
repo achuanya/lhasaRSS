@@ -6,8 +6,6 @@ lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预
 
 随后上传至 Github 仓库亦或是腾讯云 COS 指定路径。同时，每次运行过程中的日志信息都会记录到 GitHub 仓库中（按日期生成独立日志文件），方便您随时查看和追溯历史记录
 
----
-
 <div align="center">
   <a href="https://996.icu" target="_blank">
       <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
