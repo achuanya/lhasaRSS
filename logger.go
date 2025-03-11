@@ -6,7 +6,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -184,4 +187,51 @@ func summarizeResults(successCount, total int, problems map[string][]string) str
 		sb.WriteString("没有任何警告或错误, 一切正常\n")
 	}
 	return sb.String()
+}
+
+// getGitHubFileContent 获取指定文件的完整内容和SHA
+//
+// Description:
+//
+//	通过 GitHub API 获取远程文件的内容（base64 编码），然后进行解码，
+//	并同时获取其 SHA 值用于后续更新或删除操作
+//	如果文件不存在（404），则返回空内容、空SHA
+func getGitHubFileContent(ctx context.Context, token, owner, repo, path string) (string, string, error) {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
+	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	if err != nil {
+		return "", "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == 404 {
+		// 文件不存在
+		return "", "", nil
+	}
+	if resp.StatusCode != 200 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return "", "", fmt.Errorf("failed to get file %s, status: %d, body: %s",
+			path, resp.StatusCode, string(bodyBytes))
+	}
+
+	var response struct {
+		SHA     string `json:"sha"`
+		Content string `json:"content"`
+	}
+	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", "", err
+	}
+
+	decoded, err := decodeBase64(response.Content)
+	if err != nil {
+		return "", "", err
+	}
+	return decoded, response.SHA, nil
 }
