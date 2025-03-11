@@ -26,11 +26,12 @@ func main() {
 	ctx := context.Background()
 
 	// 读取环境变量读取配置
-	secretID := os.Getenv("TENCENT_CLOUD_SECRET_ID")   // 腾讯云COS SecretID
-	secretKey := os.Getenv("TENCENT_CLOUD_SECRET_KEY") // 腾讯云COS SecretKey
-	rssListURL := os.Getenv("RSS")                     // RSS列表TXT在COS中的URL
-	dataURL := os.Getenv("DATA")                       // data.json在COS中的URL
+	secretID := os.Getenv("TENCENT_CLOUD_SECRET_ID")   // 腾讯云 COS SecretID
+	secretKey := os.Getenv("TENCENT_CLOUD_SECRET_KEY") // 腾讯云 COS SecretKey
+	rssListURL := os.Getenv("RSS")                     // RSS 列表 TXT 在 COS 中的 URL
+	dataURL := os.Getenv("DATA")                       // data.json 在 COS 中的 URL
 	defaultAvatar := os.Getenv("DEFAULT_AVATAR")       // 默认头像
+	saveTarget := os.Getenv("SAVE_TARGET")             // "GITHUB" 或 "COS" (默认走 GITHUB)
 
 	// 如果重要环境变量缺失，直接写日志并退出
 	if secretID == "" || secretKey == "" || rssListURL == "" || dataURL == "" {
@@ -39,6 +40,11 @@ func main() {
 	}
 	if defaultAvatar == "" {
 		_ = appendLog(ctx, "[WARN] 未设置 DEFAULT_AVATAR，将可能导致头像为空字符串")
+	}
+
+	// 如果没显式设置 SAVE_TARGET，则默认为 GITHUB
+	if saveTarget == "" {
+		saveTarget = "GITHUB"
 	}
 
 	// 拉取RSS列表
@@ -94,9 +100,43 @@ func main() {
 		return
 	}
 
-	// 上传到 COS
-	if err := uploadToCos(ctx, secretID, secretKey, dataURL, jsonBytes); err != nil {
-		_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 COS 失败: %v", err))
+	// 根据 SAVE_TARGET 判断保存方式
+	switch strings.ToUpper(saveTarget) {
+	case "GITHUB":
+		{
+			// 读取 GitHub 仓库信息
+			token := os.Getenv("TOKEN")
+			githubUser := os.Getenv("NAME")
+			repoName := os.Getenv("REPOSITORY")
+			if token == "" || githubUser == "" || repoName == "" {
+				_ = appendLog(ctx, "[ERROR] 若要保存到GitHub, 需设置 TOKEN / NAME / REPOSITORY")
+				return
+			}
+
+			// filePath 这里我们固定为 data/data.json
+			filePath := "data/data.json"
+			// if filePath == "" {
+			// 	filePath = "data/data.json"
+			// }
+
+			// 将 data.json 上传到 GITHUB
+			if err := uploadToGitHub(ctx, token, githubUser, repoName, filePath, jsonBytes); err != nil {
+				_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 GitHub 失败: %v", err))
+				return
+			}
+		}
+
+	case "COS":
+		{
+			// 将 data.json 上传到 COS
+			if err := uploadToCos(ctx, secretID, secretKey, dataURL, jsonBytes); err != nil {
+				_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 COS 失败: %v", err))
+				return
+			}
+		}
+
+	default:
+		_ = appendLog(ctx, fmt.Sprintf("[ERROR] SAVE_TARGET 值无效: %s (只能是 'GITHUB' 或 'COS')", saveTarget))
 		return
 	}
 
