@@ -11,17 +11,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mmcdole/gofeed" // 确保go.mod里已引入
+	"github.com/mmcdole/gofeed"
 	"golang.org/x/net/html"
 )
 
 // parseTime 尝试用多种格式解析RSS中的时间字符串, 若都失败则返回错误
+//
+// Description:
+//
+//	有些RSS的时间可能格式不同，此函数依次尝试多种日期格式进行解析，如果全部失败则返回错误
+//
 // Parameters:
-//   - timeStr: 时间字符串
+//   - timeStr: 待解析的时间字符串
 //
 // Returns:
-//   - time.Time: 解析出的时间
-//   - error    : 如果所有格式都失败, 返回错误; 否则为nil
+//   - time.Time: 解析成功后返回的时间
+//   - error    : 如果所有格式都无法解析，则返回错误
 func parseTime(timeStr string) (time.Time, error) {
 	formats := []string{
 		time.RFC1123Z,                   // "Mon, 02 Jan 2006 15:04:05 -0700"
@@ -31,49 +36,58 @@ func parseTime(timeStr string) (time.Time, error) {
 		"Mon, 02 Jan 2006 15:04:05 +0000",
 	}
 
-	// 依次尝试解析
 	for _, f := range formats {
 		if t, err := time.Parse(f, timeStr); err == nil {
 			return t, nil
 		}
 	}
-	// 如果都失败, 就返回错误
 	return time.Time{}, fmt.Errorf("无法解析时间: %s", timeStr)
 }
 
-// getFeedAvatarURL 尝试从feed.Image或者博客主页获取头像地址
-// 游钓四方 <haibao1027@gmail.com>
+// getFeedAvatarURL 尝试从 feed.Image 或博客主页获取头像地址
+//
+// Description:
+//
+//	该函数首先尝试读取 feed.Image.URL，如果不存在，则尝试从博客主页（feed.Link）中解析常见的 icon 图标
+//
 // Parameters:
-//   - feed: gofeed.Feed 指针, 其中包含Image, Link等字段
+//   - feed: gofeed.Feed 指针, 其中包含 Image, Link等字段
 //
 // Returns:
-//   - string: 若能获取到有效头像, 则返回其URL; 若无法获取则返回空字符串
+//   - string: 若能获取到有效头像，则返回其URL；若无法获取则返回空字符串
 func getFeedAvatarURL(feed *gofeed.Feed) string {
-	// 如果 RSS 中存在 <image> 标签且URL不为空, 则优先使用
+	// 优先使用 <Image> 标签内的 URL
 	if feed.Image != nil && feed.Image.URL != "" {
 		return feed.Image.URL
 	}
-	// 否则, 如果 feed.Link 不为空, 就尝试访问该链接获取头像
+	// 若没有 image 则尝试抓取博客主页获取
 	if feed.Link != "" {
 		return fetchBlogLogo(feed.Link)
 	}
-	// 如果以上都不行, 就返回空字符串
 	return ""
 }
 
-// fetchBlogLogo 尝试抓取博客主页, 并从<head>中获取最常见的icon; 若没有则fallback到favicon.ico
-// 游钓四方 <haibao1027@gmail.com>
+// fetchBlogLogo 尝试抓取博客主页, 并从<head>中获取常见的 icon 或 meta og:image
+//
+// Description:
+//
+//	该函数通过 HTTP GET 请求获取博客首页内容，解析其 HTML，
+//	在<head>标签中寻找<link rel="icon">或<meta property="og:image">等信息
+//	如果解析失败或未找到，则回退到 favicon.ico
 func fetchBlogLogo(blogURL string) string {
+	// 如果获取失败，则直接回退到 favicon.ico
 	resp, err := http.Get(blogURL)
 	if err != nil {
 		return fallbackFavicon(blogURL)
 	}
 	defer resp.Body.Close()
 
+	// 如果状态码不是 200，视为获取主页失败
 	if resp.StatusCode != 200 {
 		return fallbackFavicon(blogURL)
 	}
 
+	// 解析HTML文档
 	doc, err := html.Parse(resp.Body)
 	if err != nil {
 		return fallbackFavicon(blogURL)
@@ -82,10 +96,15 @@ func fetchBlogLogo(blogURL string) string {
 	var iconHref string
 	var ogImage string
 
+	// 定义一个匿名函数，用来递归遍历HTML节点
 	var f func(*html.Node)
 	f = func(n *html.Node) {
+		// 如果当前节点是元素节点
 		if n.Type == html.ElementNode {
+			// 获取当前节点的标签名称，并转为小写
 			tagName := strings.ToLower(n.Data)
+
+			// 针对 <link> 标签查找 iconHref
 			if tagName == "link" {
 				var relVal, hrefVal string
 				for _, attr := range n.Attr {
@@ -98,12 +117,14 @@ func fetchBlogLogo(blogURL string) string {
 						hrefVal = val
 					}
 				}
+				// 如果 rel 包含 icon 字段，并且 href 不为空，则视为站点图标
 				if strings.Contains(relVal, "icon") && hrefVal != "" {
 					if iconHref == "" {
 						iconHref = hrefVal
 					}
 				}
 			} else if tagName == "meta" {
+				// 针对 <meta> 标签查找 og:image
 				var propVal, contentVal string
 				for _, attr := range n.Attr {
 					key := strings.ToLower(attr.Key)
@@ -120,22 +141,31 @@ func fetchBlogLogo(blogURL string) string {
 				}
 			}
 		}
+		// 递归遍历子节点
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			f(c)
 		}
 	}
 	f(doc)
 
+	// 如果找到 iconHref，则返回绝对路径
 	if iconHref != "" {
 		return makeAbsoluteURL(blogURL, iconHref)
 	}
+	// 如果没找到 <link rel="icon">，尝试使用 og:image
 	if ogImage != "" {
 		return makeAbsoluteURL(blogURL, ogImage)
 	}
+	// 仍未找到，则回退到 favicon.ico
 	return fallbackFavicon(blogURL)
 }
 
 // fallbackFavicon 返回 "scheme://host/favicon.ico"
+//
+// Description:
+//
+//	如果在博客主页中找不到任何可用的 icon，就使用此函数拼接 favicon.ico 路径
+//	如果 URL 解析有误，则返回空字符串
 func fallbackFavicon(blogURL string) string {
 	u, err := url.Parse(blogURL)
 	if err != nil {
@@ -148,6 +178,11 @@ func fallbackFavicon(blogURL string) string {
 }
 
 // makeAbsoluteURL 将相对路径转换为绝对路径
+//
+// Description:
+//
+//	如果给定的 refStr 是相对路径，则将其基于 baseStr 构造成绝对路径
+//	如果本身就是绝对路径，则直接返回，常见于 HTML 中 <link>、<meta>、<img> 等的引用
 func makeAbsoluteURL(baseStr, refStr string) string {
 	baseURL, err := url.Parse(baseStr)
 	if err != nil {
@@ -161,6 +196,10 @@ func makeAbsoluteURL(baseStr, refStr string) string {
 }
 
 // checkURLAvailable 通过HEAD请求检查URL是否可正常访问(返回200)
+//
+// Description:
+//
+//	仅发送 HEAD 请求以确认资源是否存在且可访问，若返回状态码为200，则视为可用
 func checkURLAvailable(urlStr string) (bool, error) {
 	client := &http.Client{
 		Timeout: 5 * time.Second,
