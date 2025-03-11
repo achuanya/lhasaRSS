@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -33,22 +32,19 @@ import (
 // Returns:
 //   - error: 如果写入或网络交互出现错误，则返回错误；否则返回nil
 func appendLog(ctx context.Context, rawLogContent string) error {
-	// 从环境变量读取配置
-	token := os.Getenv("TOKEN")         // GitHub Token
-	githubUser := os.Getenv("NAME")     // GitHub用户名
-	repoName := os.Getenv("REPOSITORY") // GitHub仓库名
-	owner := githubUser
-	repo := repoName
+	// 从 config.go 中加载统一的环境变量配置
+	cfg := LoadConfig()
 
-	committerName := githubUser
-	committerEmail := githubUser + "@users.noreply.github.com"
+	// 提交者信息
+	committerName := cfg.GitHubName
+	committerEmail := cfg.GitHubName + "@users.noreply.github.com"
 
 	// 生成日志文件名，例如：logs/2025-03-10.log
 	dateStr := time.Now().Format("2006-01-02")
 	logPath := filepath.Join("logs", dateStr+".log")
 
 	// 先获取旧日志内容和旧日志文件的SHA
-	oldContent, oldSHA, err := getGitHubFileContent(ctx, token, owner, repo, logPath)
+	oldContent, oldSHA, err := getGitHubFileContent(ctx, cfg.GitHubToken, cfg.GitHubName, cfg.GitHubRepo, logPath)
 	if err != nil {
 		return err
 	}
@@ -72,9 +68,9 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 	// 将拼接后的完整日志上传到GitHub
 	err = putGitHubFile(
 		ctx,
-		token,
-		owner,
-		repo,
+		cfg.GitHubToken,
+		cfg.GitHubName,
+		cfg.GitHubRepo,
 		logPath,
 		oldSHA,
 		newContent,
@@ -87,7 +83,7 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 	}
 
 	// 清理7天前的日志
-	return cleanOldLogs(ctx, token, owner, repo, committerName, committerEmail)
+	return cleanOldLogs(ctx)
 }
 
 // cleanOldLogs 删除7天前的日志文件
@@ -107,12 +103,18 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 //
 // Returns:
 //   - error: 如果删除过程中出现错误则返回，否则返回nil
-func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, committerEmail string) error {
-	files, err := listGitHubDir(ctx, token, owner, repo, "logs")
+func cleanOldLogs(ctx context.Context) error {
+	cfg := LoadConfig()
+
+	committerName := cfg.GitHubName
+	committerEmail := cfg.GitHubName + "@users.noreply.github.com"
+
+	// 列出 logs 目录下的所有文件或子目录
+	files, err := listGitHubDir(ctx, cfg.GitHubToken, cfg.GitHubName, cfg.GitHubRepo, "logs")
 	if err != nil {
 		return nil
 	}
-	// 列出 logs 目录下的所有文件或子目录
+
 	sevenDaysAgo := time.Now().AddDate(0, 0, -7)
 
 	for _, f := range files {
@@ -137,7 +139,16 @@ func cleanOldLogs(ctx context.Context, token, owner, repo, committerName, commit
 		// 如果该日志的日期早于7天前，则删除
 		if t.Before(sevenDaysAgo) {
 			path := filepath.Join("logs", f.Name)
-			delErr := deleteGitHubFile(ctx, token, owner, repo, path, f.SHA, committerName, committerEmail)
+			delErr := deleteGitHubFile(
+				ctx,
+				cfg.GitHubToken,
+				cfg.GitHubName,
+				cfg.GitHubRepo,
+				path,
+				f.SHA,
+				committerName,
+				committerEmail,
+			)
 			if delErr != nil {
 				fmt.Printf("删除旧日志 %s 失败: %v\n", f.Name, delErr)
 			} else {

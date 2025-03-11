@@ -8,7 +8,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -25,30 +24,21 @@ func main() {
 	// 创建上下文，可用于取消或超时
 	ctx := context.Background()
 
-	// 读取环境变量读取配置
-	secretID := os.Getenv("TENCENT_CLOUD_SECRET_ID")   // 腾讯云 COS SecretID
-	secretKey := os.Getenv("TENCENT_CLOUD_SECRET_KEY") // 腾讯云 COS SecretKey
-	rssListURL := os.Getenv("RSS")                     // RSS 列表 TXT 在 COS 中的 URL
-	dataURL := os.Getenv("DATA")                       // data.json 在 COS 中的 URL
-	defaultAvatar := os.Getenv("DEFAULT_AVATAR")       // 默认头像
-	saveTarget := os.Getenv("SAVE_TARGET")             // "GITHUB" 或 "COS" (默认走 GITHUB)
+	// 一次性加载所有环境变量
+	cfg := LoadConfig()
 
 	// 如果重要环境变量缺失，直接写日志并退出
-	if secretID == "" || secretKey == "" || rssListURL == "" || dataURL == "" {
+	if cfg.TencentSecretID == "" || cfg.TencentSecretKey == "" ||
+		cfg.RssListURL == "" || cfg.DataURL == "" {
 		_ = appendLog(ctx, "[ERROR] 环境变量缺失，请检查 TENCENT_CLOUD_SECRET_ID/TENCENT_CLOUD_SECRET_KEY/RSS/DATA 是否已配置")
 		return
 	}
-	if defaultAvatar == "" {
+	if cfg.DefaultAvatar == "" {
 		_ = appendLog(ctx, "[WARN] 未设置 DEFAULT_AVATAR，将可能导致头像为空字符串")
 	}
 
-	// 如果没显式设置 SAVE_TARGET，则默认为 GITHUB
-	if saveTarget == "" {
-		saveTarget = "GITHUB"
-	}
-
 	// 拉取RSS列表
-	rssLinks, err := fetchRSSLinks(rssListURL)
+	rssLinks, err := fetchRSSLinks(cfg.RssListURL)
 	if err != nil {
 		_ = appendLog(ctx, fmt.Sprintf("[ERROR] 拉取RSS链接失败: %v", err))
 		return
@@ -59,7 +49,7 @@ func main() {
 	}
 
 	// 并发抓取所有RSS，获取结果和问题统计
-	results, problems := fetchAllFeeds(ctx, rssLinks, defaultAvatar)
+	results, problems := fetchAllFeeds(ctx, rssLinks, cfg.DefaultAvatar)
 
 	// 提取成功抓取的项，并做按发布时间的倒序排序
 	var itemsWithTime []struct {
@@ -68,14 +58,13 @@ func main() {
 	}
 	var successCount int
 	for _, r := range results {
-		if r.Err != nil {
-			continue
+		if r.Err == nil {
+			successCount++
+			itemsWithTime = append(itemsWithTime, struct {
+				article Article
+				t       time.Time
+			}{*r.Article, r.ParsedTime})
 		}
-		successCount++
-		itemsWithTime = append(itemsWithTime, struct {
-			article Article
-			t       time.Time
-		}{*r.Article, r.ParsedTime})
 	}
 
 	// 按发布时间倒序排序
@@ -100,43 +89,39 @@ func main() {
 		return
 	}
 
-	// 根据 SAVE_TARGET 判断保存方式
-	switch strings.ToUpper(saveTarget) {
+	// 根据 SAVE_TARGET 判断保存路径
+	switch cfg.SaveTarget {
 	case "GITHUB":
-		{
-			// 读取 GitHub 仓库信息
-			token := os.Getenv("TOKEN")
-			githubUser := os.Getenv("NAME")
-			repoName := os.Getenv("REPOSITORY")
-			if token == "" || githubUser == "" || repoName == "" {
-				_ = appendLog(ctx, "[ERROR] 若要保存到GitHub, 需设置 TOKEN / NAME / REPOSITORY")
-				return
-			}
+		// 须检查 Token / Name / Repo
+		if cfg.GitHubToken == "" || cfg.GitHubName == "" || cfg.GitHubRepo == "" {
+			_ = appendLog(ctx, "[ERROR] 若要保存到GitHub, 需设置 TOKEN / NAME / REPOSITORY")
+			return
+		}
 
-			// filePath 这里我们固定为 data/data.json
-			filePath := "data/data.json"
-			// if filePath == "" {
-			// 	filePath = "data/data.json"
-			// }
-
-			// 将 data.json 上传到 GITHUB
-			if err := uploadToGitHub(ctx, token, githubUser, repoName, filePath, jsonBytes); err != nil {
-				_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 GitHub 失败: %v", err))
-				return
-			}
+		// 上传到 COS
+		dataFilePath := "data/data.json"
+		err := uploadToGitHub(
+			ctx,
+			cfg.GitHubToken,
+			cfg.GitHubName,
+			cfg.GitHubRepo,
+			dataFilePath,
+			jsonBytes,
+		)
+		if err != nil {
+			_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 GitHub 失败: %v", err))
+			return
 		}
 
 	case "COS":
-		{
-			// 将 data.json 上传到 COS
-			if err := uploadToCos(ctx, secretID, secretKey, dataURL, jsonBytes); err != nil {
-				_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 COS 失败: %v", err))
-				return
-			}
+		// 上传到 COS
+		if err := uploadToCos(ctx, cfg.TencentSecretID, cfg.TencentSecretKey, cfg.DataURL, jsonBytes); err != nil {
+			_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 COS 失败: %v", err))
+			return
 		}
 
 	default:
-		_ = appendLog(ctx, fmt.Sprintf("[ERROR] SAVE_TARGET 值无效: %s (只能是 'GITHUB' 或 'COS')", saveTarget))
+		_ = appendLog(ctx, fmt.Sprintf("[ERROR] SAVE_TARGET 值无效: %s (只能是 'GITHUB' 或 'COS')", cfg.SaveTarget))
 		return
 	}
 

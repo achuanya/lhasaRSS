@@ -265,39 +265,46 @@ func decodeBase64(b64str string) (string, error) {
 	return string(decoded), nil
 }
 
-// uploadToGitHub 使用GitHub API 将 data.json 覆盖上传到指定仓库路径
+// uploadToGitHub 使用 GitHub API 将 data.json 覆盖上传到指定仓库路径
 //
 // Parameters:
-//   - ctx      : 上下文，用于在需要时取消操作
-//   - token    : GitHub的访问令牌
-//   - owner    : 仓库所有者用户名
-//   - repo     : 仓库名
-//   - filePath : data.json 在 GitHub 仓库中的完整路径(例如 "data/data.json")
-//   - data     : 要上传的 JSON 字节内容
+//   - ctx         : 上下文，用于在需要时取消操作
+//   - token       : GitHub 的访问令牌
+//   - owner       : 仓库所有者用户名
+//   - repo        : 仓库名
+//   - dataFilePath: data.json 在 GitHub 仓库中的完整路径(例如 "data/data.json")
+//   - data        : 要上传的 JSON 字节内容
 //
 // Returns:
 //   - error: 如果上传出现错误, 返回错误; 否则nil
-func uploadToGitHub(ctx context.Context, token, owner, repo, filePath string, data []byte) error {
-	// 获取提交者信息（可根据实际需求定制，也可以当作额外形参传进来）
+func uploadToGitHub(
+	ctx context.Context,
+	token string,
+	owner string,
+	repo string,
+	dataFilePath string,
+	data []byte,
+) error {
+
 	committerName := owner
 	committerEmail := owner + "@users.noreply.github.com"
 
-	// 先查文件是否存在，获取其SHA
-	sha, err := getGitHubFileSHA(ctx, token, owner, repo, filePath)
+	// 先查文件是否存在
+	sha, err := getGitHubFileSHA(ctx, token, owner, repo, dataFilePath)
 	if err != nil {
-		return wrapErrorf(err, "获取 %s 文件SHA失败", filePath)
+		return wrapErrorf(err, "获取 %s 文件SHA失败", dataFilePath)
 	}
 
-	// 通过 putGitHubFile 创建或更新文件
+	// 通过 putGitHubFile 创建或更新
 	err = putGitHubFile(
 		ctx,
 		token,
 		owner,
 		repo,
-		filePath,
-		sha,                // 如果文件原先不存在则 sha==""，putGitHubFile 会自动创建
-		string(data),       // 这里需要传 string
-		"Update data.json", // 提交信息
+		dataFilePath,
+		sha,
+		string(data),
+		"Update data.json",
 		committerName,
 		committerEmail,
 	)
