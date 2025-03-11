@@ -9,9 +9,6 @@
   <img src="https://img.shields.io/github/last-commit/achuanya/lhasaRSS" alt="GitHub last commit" />
   <img src="https://img.shields.io/github/stars/achuanya/lhasaRSS?style=social" alt="GitHub stars" />
   <img src="https://img.shields.io/github/license/achuanya/lhasaRSS" alt="GitHub license" />
-  <img src="https://img.shields.io/github/go-mod/go-version/achuanya/lhasaRSS" alt="Go version" />
-  <img src="https://img.shields.io/github/languages/code-size/achuanya/lhasaRSS" alt="Code size" />
-  <img src="https://img.shields.io/tokei/lines/github/achuanya/lhasaRSS" alt="Lines of code" />
 </div>
 
 **效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
