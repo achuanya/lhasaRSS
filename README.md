@@ -1,39 +1,55 @@
-# lhasaRSS
+# lhasaRSS —— 高效稳定的RSS聚合解决方案
 
-效果：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
+**效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
 
-本项目是一个RSS 抓取与聚合的工具，会从指定的RSS源列表中并发抓取最新文章，并将结果（包括博客名称、文章标题、发布时间、文章链接和头像）按照时间倒序输出到 data.json 文件，最后上传至腾讯云 COS 中指定的路径。同时还会将每次运行时的一些日志记录到 GitHub 仓库中（按日期分日志文件）
+lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预先设定的 RSS 源列表中并发抓取最新文章，自动提取博客名称、文章标题、发布时间、文章链接及头像等信息，并将数据按时间倒序存储到 `data.json` 文件中，随后上传至 Github 仓库亦或是腾讯云 COS 指定路径。同时，每次运行过程中的日志信息都会记录到 GitHub 仓库中（按日期生成独立日志文件），方便您随时查看和追溯历史记录
+
+---
 
 ## 主要功能
 
-从 COS 上获取一个纯文本的 RSS 列表文件（每行一个RSS链接）
-并发抓取每个 RSS 源，解析出最新的文章及相关信息
-支持对解析失败、空Feed、头像缺失等情况进行统计并记录
-将抓取结果保存成 data.json，再上传至腾讯云 COS
-同步将执行日志写入到 GitHub 仓库中，方便查看历史记录
-使用指数退避算法（exponential backoff）来重试解析失败的 RSS，减少因网络波动或 SSL 问题导致的抓取中断
+- **获取 RSS 列表**  
+  从Github 或 腾讯云 COS 获取纯文本格式的 RSS 列表文件（每行一个 RSS 链接）
 
-## 1. 目录结构
+- **并发抓取与解析**  
+  同时抓取各个 RSS 源，实时解析最新文章及相关信息
+
+- **异常情况记录**  
+  对解析失败、空 Feed、头像缺失等异常情况进行统计并记录，确保数据质量
+
+- **数据存储与上传**  
+  将抓取结果保存为 `data.json`，并自动上传至腾讯云 COS 或 GitHub 指定位置
+
+- **日志记录与管理**  
+  每次运行均会生成日志文件，并同步写入 GitHub，支持按日期分文件记录，并自动清理7天前的旧日志
+
+- **指数退避重试机制**  
+  采用指数退避算法重试解析失败的 RSS，提升系统稳定性，降低因网络波动或 SSL 问题引起的抓取中断风险
+
+---
+
+## 目录结构
+
 
 ```txt
 lhasaRSS
 ├── logs/            # 日志目录
 ├── data/
-│ ├── data.json      # 程序抓取后生成并上传的 JSON 文件 (可选地存放在 GitHub 或 COS)
-│ └── rss.txt        # 订阅源，(可选地存放在 GitHub 或 COS)
-├── config.go        # 统一管理和校验环境变量
-├── cos_upload.go    # 使用腾讯云 COS SDK 上传 data.json
-├── feed_fetcher.go  # 并发抓取 RSS 核心逻辑，含指数退避重试等
-├── feed_parser.go   # RSS 时间解析、头像解析等辅助函数
-├── github_utils.go  # 与 GitHub 文件操作相关的工具函数 (创建、更新、删除等)
-├── logger.go        # 将日志写入 GitHub 的 logs/ 目录；清理旧日志
-├── main.go          # 程序入口，业务主流程调度
-├── model.go         # 数据结构定义 (Article, AllData, feedResult)
-├── wrap_error.go    # 包装错误信息时附带文件名和行号
+│   ├── data.json    # 抓取后生成并上传的 JSON 文件 (可存放在 GitHub 或 COS)
+│   └── rss.txt      # RSS 订阅源文件 (可存放在 GitHub 或 COS)
+├── config.go        # 环境变量的统一管理和校验
+├── cos_upload.go    # 利用腾讯云 COS SDK 上传 data.json
+├── feed_fetcher.go  # 核心抓取逻辑（支持并发、指数退避重试等）
+├── feed_parser.go   # 辅助函数（RSS 时间解析、头像处理等）
+├── github_utils.go  # GitHub 文件操作工具（创建、更新、删除等）
+├── logger.go        # 日志写入 GitHub 的 logs/ 目录及旧日志清理
+├── main.go          # 主入口，业务流程调度
+├── model.go         # 数据结构定义（Article、AllData、feedResult）
+├── wrap_error.go    # 错误信息包装（附带文件名和行号）
 └── go.mod           # Go Modules 依赖管理
 ```
 
-## 2. 环境变量
+## 环境变量
 
 lhasaRSS 主要通过以下环境变量来进行配置：
 
@@ -54,18 +70,22 @@ lhasaRSS 主要通过以下环境变量来进行配置：
 
 ---
 
-## 3. 部署与运行
+## 部署与运行
 
-在 GitHub 上准备好一个空仓库并生成 Token（具有 repo 权限），用以写日志
+1.准备 GitHub 仓库
 
-在服务器或本地机配置上述环境变量（可在 CI/CD 平台上也可在本地 .env 文件里）
+  在 GitHub 上创建一个空仓库，并生成具有 repo 权限的 Token 以便写入日志
 
-创建工作流文件示例：
+2.配置环境变量
 
-在你的仓库中，点击 Actions > New workflow，新建一个 .yml 工作流文件，例如 .github/workflows/rss_update.yml
+  在服务器或本地机配置上述环境变量（可通过 CI/CD 平台或本地 .env 文件进行配置）
 
-示例 Workflow（定时任务，每 1 小时跑一次）
+3.创建工作流文件
+  
+  在仓库中点击 Actions > New workflow，新建一个 .yml 工作流文件，如 .github/workflows/rss_update.yml
 
+  示例 Workflow（定时任务，每 1 小时执行一次）：
+  
 ```yml
 name: lhasaRSS Update
 
@@ -121,15 +141,13 @@ jobs:
 
 提交后，GitHub Actions 会定时触发工作流，自动执行程序并上传RSS和日志，当然也可以手动调试
 
-## 4. 日志查看
+## 日志查看
 
-抓取过程中，出现 解析失败、RSS为空、头像失效 等情况，会在 logs/2025-03-11.log (示例) 中追加记录
+在抓取过程中，如遇到解析失败、RSS 为空、头像无效等情况，系统会在类似 logs/2025-03-11.log 的日志文件中记录详细信息
 
-当天重复运行多次，会在同一个 .log 文件里不断追加新的时间戳行
+当天多次运行时，日志将持续追加于同一文件中，同时程序会自动清理 7 天前的日志文件，确保日志存储高效且不臃肿
 
-程序会在每次运行后自动清理 7 天之前的 .log 文件，避免日志无限增多
-
-## 5. 相关文档
+## 相关文档
 * lhasaRSS:[https://github.com/achuanya/lhasaRSS][1]
 * 腾讯 Go SDK 快速入门: [https://cloud.tencent.com/document/product/436/31215][2]
 * XML Go SDK 源码: [https://github.com/tencentyun/cos-go-sdk-v5][3]
