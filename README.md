@@ -13,7 +13,6 @@ lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预
   <img src="https://img.shields.io/github/license/achuanya/lhasaRSS" alt="GitHub license" />
   <img src="https://img.shields.io/github/actions/workflow/status/achuanya/lhasaRSS/rss_update.yml?branch=main" alt="GitHub Workflow Status" />
   <img src="https://img.shields.io/github/issues/achuanya/lhasaRSS" alt="GitHub issues" />
-  <img src="https://img.shields.io/github/last-commit/achuanya/lhasaRSS" alt="GitHub last commit" />
   <img src="https://img.shields.io/github/stars/achuanya/lhasaRSS?style=social" alt="GitHub stars" />
 </div>
 
