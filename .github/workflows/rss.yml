@@ -30,6 +30,9 @@ jobs:
           RSS: ${{ secrets.RSS }}
           DATA: ${{ secrets.DATA }}
           DEFAULT_AVATAR: ${{ secrets.DEFAULT_AVATAR }}
+          SAVE_TARGET: ${{ secrets.SAVE_TARGET }}
+          RSS_SOURCE: ${{ secrets.SAVE_TARGET }}
+
         run: |
           go mod tidy
           go build -o rssfetch .
