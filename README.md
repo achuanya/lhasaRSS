@@ -13,7 +13,7 @@
 同步将执行日志写入到 GitHub 仓库中，方便查看历史记录
 使用指数退避算法（exponential backoff）来重试解析失败的 RSS，减少因网络波动或 SSL 问题导致的抓取中断
 
-1. **目录结构**
+## 1. 目录结构
 
 ```txt
 lhasaRSS
@@ -33,7 +33,7 @@ lhasaRSS
 └── go.mod           # Go Modules 依赖管理
 ```
 
-2. **环境变量**
+## 2. 环境变量
 
 lhasaRSS 主要通过以下环境变量来进行配置：
 
@@ -54,7 +54,7 @@ lhasaRSS 主要通过以下环境变量来进行配置：
 
 ---
 
-3. **部署与运行**
+## 3. 部署与运行
 
 在 GitHub 上准备好一个空仓库并生成 Token（具有 repo 权限），用以写日志
 
@@ -121,7 +121,7 @@ jobs:
 
 提交后，GitHub Actions 会定时触发工作流，自动执行程序并上传RSS和日志，当然也可以手动调试
 
-4. **日志查看**
+## 4. 日志查看
 
 抓取过程中，出现 解析失败、RSS为空、头像失效 等情况，会在 logs/2025-03-11.log (示例) 中追加记录
 
@@ -129,8 +129,7 @@ jobs:
 
 程序会在每次运行后自动清理 7 天之前的 .log 文件，避免日志无限增多
 
-5. **参考**
-## 相关文档
+## 5. 相关文档
 * lhasaRSS:[https://github.com/achuanya/lhasaRSS][1]
 * 腾讯 Go SDK 快速入门: [https://cloud.tencent.com/document/product/436/31215][2]
 * XML Go SDK 源码: [https://github.com/tencentyun/cos-go-sdk-v5][3]
