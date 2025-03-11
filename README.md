@@ -1,22 +1,17 @@
 # lhasaRSS —— 高效稳定的RSS聚合解决方案
 
-<a href="https://996.icu" target="_blank">
-    <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
-</a>
-
-<a href="https://996.icu" target="_blank">
-    <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
-</a>
-
-<div align="center" style="display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-    ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/achuanya/lhasaRSS/rss_update.yml?branch=main)  
-    ![GitHub issues](https://img.shields.io/github/issues/achuanya/lhasaRSS)  
-    ![GitHub last commit](https://img.shields.io/github/last-commit/achuanya/lhasaRSS)  
-    ![GitHub stars](https://img.shields.io/github/stars/achuanya/lhasaRSS?style=social)  
-    ![GitHub license](https://img.shields.io/github/license/achuanya/lhasaRSS)  
-    ![Go version](https://img.shields.io/github/go-mod/go-version/achuanya/lhasaRSS)  
-    ![Code size](https://img.shields.io/github/languages/code-size/achuanya/lhasaRSS)  
-    ![Lines of code](https://img.shields.io/tokei/lines/github/achuanya/lhasaRSS)  
+<div align="center">
+  <a href="https://996.icu" target="_blank">
+      <img src="https://cos.lhasa.icu/svg/link-996.icu-red.svg" alt="996.icu" />
+  </a>
+  <img src="https://img.shields.io/github/actions/workflow/status/achuanya/lhasaRSS/rss_update.yml?branch=main" alt="GitHub Workflow Status" />
+  <img src="https://img.shields.io/github/issues/achuanya/lhasaRSS" alt="GitHub issues" />
+  <img src="https://img.shields.io/github/last-commit/achuanya/lhasaRSS" alt="GitHub last commit" />
+  <img src="https://img.shields.io/github/stars/achuanya/lhasaRSS?style=social" alt="GitHub stars" />
+  <img src="https://img.shields.io/github/license/achuanya/lhasaRSS" alt="GitHub license" />
+  <img src="https://img.shields.io/github/go-mod/go-version/achuanya/lhasaRSS" alt="Go version" />
+  <img src="https://img.shields.io/github/languages/code-size/achuanya/lhasaRSS" alt="Code size" />
+  <img src="https://img.shields.io/tokei/lines/github/achuanya/lhasaRSS" alt="Lines of code" />
 </div>
 
 **效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
