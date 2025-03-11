@@ -2,9 +2,9 @@
 // File: feed_fetcher.go
 // Description:
 //   并发抓取RSS Feed的核心逻辑，包括：
-//   1. 从COS中获取RSS文件
+//   1. 从COS或本地文件获取RSS文件
 //   2. 并发抓取每个RSS Feed
-//   3. 对解析失败的RSS使用指数退避策略进行重试
+//   3. 对解析失败的RSS使用指数退避算法进行重试
 
 package main
 
@@ -15,6 +15,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -22,50 +23,75 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
-// fetchRSSLinks 从COS的TXT文件中逐行读取RSS链接
+// fetchRSSLinks 根据 cfg.RssSource 选择从COS拉取txt还是读取本地文件
 //
 // Description:
 //
-//	该函数通过 HTTP GET 请求获取存放在 COS 中的一个纯文本文件（每行一个RSS链接）然后将这些链接按行分割返回
+//	若 cfg.RssSource = "COS"，则通过 http.Get(cfg.RssListURL) 获取RSS列表txt
+//	若 cfg.RssSource = "GITHUB"，则认为 cfg.RssListURL 指向本地文件路径，直接 os.ReadFile
+//	读到内容后按行分割，去掉空行，返回 RSS 链接列表
+func fetchRSSLinks(cfg *Config) ([]string, error) {
+	switch cfg.RssSource {
+	case "COS":
+		return fetchRSSLinksFromHTTP(cfg.RssListURL)
+	case "GITHUB":
+		return fetchRSSLinksFromLocal(cfg.RssListURL)
+	default:
+		return nil, fmt.Errorf("无效的 RSS_SOURCE 配置: %s", cfg.RssSource)
+	}
+}
+
+// fetchRSSLinksFromHTTP 从远程 TXT 文件中逐行读取 RSS 链接
 //
-// Parameters:
-//   - rssListURL: 存放RSS链接列表的TXT文件在COS中的 URL
+// Description:
 //
-// Returns:
-//   - []string: 返回RSS链接列表（去除空行）
-//   - error   : 出错时返回错误，否则返回 nil
-func fetchRSSLinks(rssListURL string) ([]string, error) {
-	// 直接使用 http.Get 来获取 RSS 列表文件
-	resp, err := http.Get(rssListURL)
+//	通过 HTTP GET 请求获取存放在 COS (或其他 URL ) 中的一个纯文本文件（每行一个RSS链接）
+//	然后将这些链接按行分割返回
+func fetchRSSLinksFromHTTP(rssTxtURL string) ([]string, error) {
+	resp, err := http.Get(rssTxtURL)
 	if err != nil {
-		return nil, wrapErrorf(err, "无法获取RSS列表文件: %s", rssListURL)
+		return nil, wrapErrorf(err, "无法获取RSS列表文件: %s", rssTxtURL)
 	}
 	defer resp.Body.Close()
 
-	// 如果返回的状态码不是200，说明请求失败
 	if resp.StatusCode != 200 {
 		return nil, wrapErrorf(
 			fmt.Errorf("HTTP状态码: %d", resp.StatusCode),
-			"获取RSS列表失败: %s", rssListURL,
+			"获取RSS列表失败: %s", rssTxtURL,
 		)
 	}
 
-	// 读取整个响应Body
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, wrapErrorf(err, "读取RSS列表body时失败")
+		return nil, wrapErrorf(err, "读取RSS列表body失败")
 	}
 
+	return parseLinesToLinks(data), nil
+}
+
+// fetchRSSLinksFromLocal 从本地文件中逐行读取RSS链接
+//
+// Description:
+//
+//	从 Github 读取文本内容，然后将其按行分割返回
+func fetchRSSLinksFromLocal(filePath string) ([]string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, wrapErrorf(err, "读取Github RSS文件失败: %s", filePath)
+	}
+	return parseLinesToLinks(data), nil
+}
+
+// parseLinesToLinks 将字节切片按行拆分并去掉空白行, 返回非空字符串切片
+func parseLinesToLinks(data []byte) []string {
 	var links []string
-	// 按行拆分文本，并过滤掉空行
 	for _, line := range strings.Split(string(data), "\n") {
-		// 去掉每行首尾空格
 		line = strings.TrimSpace(line)
 		if line != "" {
 			links = append(links, line)
 		}
 	}
-	return links, nil
+	return links
 }
 
 // fetchAllFeeds 并发抓取所有RSS链接, 并返回每个链接的抓取结果及抓取过程中出现的问题统计
@@ -73,7 +99,7 @@ func fetchRSSLinks(rssListURL string) ([]string, error) {
 // Description:
 //
 //	该函数会读取传入的所有RSS链接，使用一定的并发度（maxGoroutines）来抓取每个RSS，
-//	并在抓取过程中对解析失败等情况进行统计，同时对可能的头像缺失等情况进行处理（替换为默认头像）
+//	并在抓取过程中对解析失败等情况进行统计，同时对头像缺失等情况进行处理（替换为默认头像）
 //
 // Parameters:
 //   - ctx           : 上下文，用于控制取消或超时
@@ -181,9 +207,9 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 		"noAvatar":     {}, // 头像地址为空
 		"brokenAvatar": {}, // 头像无法访问
 	}
-
 	// 收集抓取结果
 	var results []feedResult
+
 	for r := range resultChan {
 		if r.Err != nil {
 			// 若存在错误，进一步识别错误类型以便统计
@@ -230,8 +256,6 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 //   - error       :  若所有重试均失败，则返回最后一次的错误
 func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, baseWait time.Duration, backoffMultiple float64) (*gofeed.Feed, error) {
 	var lastErr error
-
-	// 进行多次尝试
 	for i := 0; i < maxRetries; i++ {
 		var feed *gofeed.Feed
 		var err error
@@ -240,7 +264,7 @@ func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, b
 		if i == 0 {
 			feed, err = fetchFeed(rssLink, parser)
 		} else {
-			// 后续重试时，使用“忽略SSL、自定义UA、清洗数据”的抓取方式
+			// 后续重试时，使用“忽略SSL、自定义UA、清理数据”的抓取方式
 			feed, err = fetchFeedWithFix(rssLink, parser)
 		}
 
@@ -248,8 +272,8 @@ func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, b
 			// 如果本次尝试成功解析，则直接返回
 			return feed, nil
 		}
-
 		lastErr = err
+
 		fmt.Printf("[Retry %d/%d] RSS parse fail for %s: %v\n", i+1, maxRetries, rssLink, err)
 
 		// 若还未到最后一次尝试，则等待一段时间后继续重试
@@ -258,18 +282,50 @@ func fetchFeedWithRetry(rssLink string, parser *gofeed.Parser, maxRetries int, b
 			time.Sleep(wait)
 		}
 	}
-
 	return nil, lastErr
 }
 
-// fetchFeedWithFix 采用修复策略抓取RSS：
-//   - 使用自定义HTTP客户端忽略SSL证书问题
-//   - 设置自定义User-Agent
-//   - 清洗响应数据中的非法XML字符
+// fetchFeed 使用最简单的 http.Get 抓取RSS，并在需要时去除非法XML字符
 //
 // Description:
 //
-//	在常规抓取失败后，可使用此函数进行进一步的尝试，包括：
+//	常规抓取方式，只做了基础的 http.Get 请求和非法字符清理，通常是第一优先使用的方法，
+//	在失败后才会使用 fetchFeedWithFix
+//
+// Parameters:
+//   - rssLink : RSS链接
+//   - parser  : gofeed.Parser实例
+//
+// Returns:
+//   - *gofeed.Feed : 成功时返回Feed对象
+//   - error        : 若请求或解析失败，则返回错误信息
+func fetchFeed(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
+	resp, err := http.Get(rssLink)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// 状态码不为200，视为失败
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("http error: %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+
+	rawData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	// 去除非法的 XML 控制字符，避免解析错误
+	cleanData := removeInvalidXMLChars(rawData)
+	return parser.ParseString(string(cleanData))
+}
+
+// fetchFeedWithFix 采用修复策略抓取RSS
+//
+// Description:
+//
+//	在抓取失败后，才会进行这一步的尝试
 //	1. 跳过不安全的SSL验证
 //	2. 自定义请求头 User-Agent
 //	3. 读取后再移除非法的 XML 控制字符
@@ -321,43 +377,7 @@ func fetchFeedWithFix(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, erro
 	return parser.ParseString(string(cleanData))
 }
 
-// fetchFeed 使用最简单的 http.Get 抓取RSS，并在需要时去除非法XML字符
-//
-// Description:
-//
-//	常规抓取方式，只做了基础的 http.Get 请求和非法字符清理，通常是第一优先使用的方法，
-//	在失败后才会使用 fetchFeedWithFix
-//
-// Parameters:
-//   - rssLink : RSS链接
-//   - parser  : gofeed.Parser实例
-//
-// Returns:
-//   - *gofeed.Feed : 成功时返回Feed对象
-//   - error        : 若请求或解析失败，则返回错误信息
-func fetchFeed(rssLink string, parser *gofeed.Parser) (*gofeed.Feed, error) {
-	resp, err := http.Get(rssLink)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// 状态码不为200，视为失败
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("http error: %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
-	}
-
-	rawData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	// 去除非法的 XML 控制字符，避免解析错误
-	cleanData := removeInvalidXMLChars(rawData)
-	return parser.ParseString(string(cleanData))
-}
-
-// removeInvalidXMLChars 过滤掉数据中非法的XML控制字符，避免RSS解析出现错误
+// removeInvalidXMLChars 过滤掉数据中非法的XML控制字符
 //
 // Description:
 //

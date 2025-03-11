@@ -9,36 +9,34 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 )
 
 // main 程序入口
 //
 // Description:
-//  1. 从环境变量中读取必要信息(SecretID, SecretKey, RSS, DATA, DEFAULT_AVATAR等)
+//  1. 加载并校验环境变量(SecretID, SecretKey, RSS, DATA, DEFAULT_AVATAR, RSS_SOURCE等)
 //  2. 拉取RSS列表并并发抓取
-//  3. 将结果整合为 data.json 并上传到指定COS路径
+//  3. 将结果整合为 data.json 并根据 SAVE_TARGET 上传到GitHub或COS
 //  4. 写执行日志到GitHub
 func main() {
-	// 创建上下文，可用于取消或超时
 	ctx := context.Background()
 
-	// 一次性加载所有环境变量
+	// 加载配置
 	cfg := LoadConfig()
-
-	// 如果重要环境变量缺失，直接写日志并退出
-	if cfg.TencentSecretID == "" || cfg.TencentSecretKey == "" ||
-		cfg.RssListURL == "" || cfg.DataURL == "" {
-		_ = appendLog(ctx, "[ERROR] 环境变量缺失，请检查 TENCENT_CLOUD_SECRET_ID/TENCENT_CLOUD_SECRET_KEY/RSS/DATA 是否已配置")
+	// 校验配置（只需在此处集中校验一次）
+	if err := cfg.Validate(); err != nil {
+		// 这里可以将错误写入日志再退出
+		_ = appendLog(ctx, "[ERROR] "+err.Error())
 		return
 	}
+
 	if cfg.DefaultAvatar == "" {
 		_ = appendLog(ctx, "[WARN] 未设置 DEFAULT_AVATAR，将可能导致头像为空字符串")
 	}
 
 	// 拉取RSS列表
-	rssLinks, err := fetchRSSLinks(cfg.RssListURL)
+	rssLinks, err := fetchRSSLinks(cfg)
 	if err != nil {
 		_ = appendLog(ctx, fmt.Sprintf("[ERROR] 拉取RSS链接失败: %v", err))
 		return
@@ -92,29 +90,19 @@ func main() {
 	// 根据 SAVE_TARGET 判断保存路径
 	switch cfg.SaveTarget {
 	case "GITHUB":
-		// 须检查 Token / Name / Repo
-		if cfg.GitHubToken == "" || cfg.GitHubName == "" || cfg.GitHubRepo == "" {
-			_ = appendLog(ctx, "[ERROR] 若要保存到GitHub, 需设置 TOKEN / NAME / REPOSITORY")
-			return
-		}
-
-		// 上传到 COS
-		dataFilePath := "data/data.json"
-		err := uploadToGitHub(
+		if err := uploadToGitHub(
 			ctx,
 			cfg.GitHubToken,
 			cfg.GitHubName,
 			cfg.GitHubRepo,
-			dataFilePath,
+			"data/data.json",
 			jsonBytes,
-		)
-		if err != nil {
+		); err != nil {
 			_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 GitHub 失败: %v", err))
 			return
 		}
 
 	case "COS":
-		// 上传到 COS
 		if err := uploadToCos(ctx, cfg.TencentSecretID, cfg.TencentSecretKey, cfg.DataURL, jsonBytes); err != nil {
 			_ = appendLog(ctx, fmt.Sprintf("[ERROR] 上传 data.json 到 COS 失败: %v", err))
 			return
@@ -128,62 +116,4 @@ func main() {
 	// 写执行日志
 	logSummary := summarizeResults(successCount, len(rssLinks), problems)
 	_ = appendLog(ctx, logSummary)
-}
-
-// summarizeResults 根据抓取成功数、总数和问题信息, 生成日志字符串
-//
-// Description:
-//
-//	将本次抓取的结果进行简单的统计说明，包含解析失败数量、空RSS数量、
-//	头像缺失或不可用的数量等，并以字符串形式返回，便于写日志
-//
-// Parameters:
-//   - successCount : 成功抓取的数量
-//   - total        : 总RSS链接数量
-//   - problems     : 各种问题的集合（parseFails, feedEmpties, noAvatar, brokenAvatar）
-//
-// Returns:
-//   - string: 整理好的日志信息
-func summarizeResults(successCount, total int, problems map[string][]string) string {
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("本次订阅抓取结果统计:\n"))
-	sb.WriteString(fmt.Sprintf("共 %d 条RSS, 成功抓取 %d 条.\n", total, successCount))
-
-	parseFails := problems["parseFails"]
-	if len(parseFails) > 0 {
-		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅解析失败:\n", len(parseFails)))
-		for _, l := range parseFails {
-			sb.WriteString("  - " + l + "\n")
-		}
-	}
-
-	feedEmpties := problems["feedEmpties"]
-	if len(feedEmpties) > 0 {
-		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅为空:\n", len(feedEmpties)))
-		for _, l := range feedEmpties {
-			sb.WriteString("  - " + l + "\n")
-		}
-	}
-
-	noAvatarList := problems["noAvatar"]
-	if len(noAvatarList) > 0 {
-		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅头像字段为空, 已使用默认头像:\n", len(noAvatarList)))
-		for _, l := range noAvatarList {
-			sb.WriteString("  - " + l + "\n")
-		}
-	}
-
-	brokenAvatarList := problems["brokenAvatar"]
-	if len(brokenAvatarList) > 0 {
-		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅头像无法访问, 已使用默认头像:\n", len(brokenAvatarList)))
-		for _, l := range brokenAvatarList {
-			sb.WriteString("  - " + l + "\n")
-		}
-	}
-
-	// 如果没有任何问题，则输出“无警告或错误”的提示
-	if len(parseFails) == 0 && len(feedEmpties) == 0 && len(noAvatarList) == 0 && len(brokenAvatarList) == 0 {
-		sb.WriteString("没有任何警告或错误, 一切正常\n")
-	}
-	return sb.String()
 }

@@ -6,10 +6,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -24,22 +21,12 @@ import (
 //	追加写入到当日日期命名的日志文件： logs/2025-03-10.log
 //	若日志文件不存在，会自动创建
 //	同时会调用 cleanOldLogs 清理 7 天之前的日志文件
-//
-// Parameters:
-//   - ctx           : 上下文 context，用于控制请求超时、取消等
-//   - rawLogContent : 原始的日志字符串
-//
-// Returns:
-//   - error: 如果写入或网络交互出现错误，则返回错误；否则返回nil
 func appendLog(ctx context.Context, rawLogContent string) error {
-	// 从 config.go 中加载统一的环境变量配置
 	cfg := LoadConfig()
 
-	// 提交者信息
 	committerName := cfg.GitHubName
 	committerEmail := cfg.GitHubName + "@users.noreply.github.com"
 
-	// 生成日志文件名，例如：logs/2025-03-10.log
 	dateStr := time.Now().Format("2006-01-02")
 	logPath := filepath.Join("logs", dateStr+".log")
 
@@ -92,24 +79,12 @@ func appendLog(ctx context.Context, rawLogContent string) error {
 //
 //	遍历 logs 目录下的所有文件，检查文件名是否符合 "YYYY-MM-DD.log" 的日期格式，
 //	若其日期早于7天前，则删除
-//
-// Parameters:
-//   - ctx            : 上下文 context
-//   - token          : GitHub Token
-//   - owner          : 仓库所有者
-//   - repo           : 仓库名
-//   - committerName  : 提交者姓名
-//   - committerEmail : 提交者邮箱
-//
-// Returns:
-//   - error: 如果删除过程中出现错误则返回，否则返回nil
 func cleanOldLogs(ctx context.Context) error {
 	cfg := LoadConfig()
 
 	committerName := cfg.GitHubName
 	committerEmail := cfg.GitHubName + "@users.noreply.github.com"
 
-	// 列出 logs 目录下的所有文件或子目录
 	files, err := listGitHubDir(ctx, cfg.GitHubToken, cfg.GitHubName, cfg.GitHubRepo, "logs")
 	if err != nil {
 		return nil
@@ -118,18 +93,13 @@ func cleanOldLogs(ctx context.Context) error {
 	sevenDaysAgo := time.Now().AddDate(0, 0, -7)
 
 	for _, f := range files {
-		// 如果不是文件，则跳过
 		if f.Type != "file" {
 			continue
 		}
-
-		// 文件名形如 "2025-03-10.log" 才可能是日志文件
 		matched, _ := regexp.MatchString(`^\d{4}-\d{2}-\d{2}\.log$`, f.Name)
 		if !matched {
 			continue
 		}
-
-		// 解析文件名中的日期
 		dateStr := strings.TrimSuffix(f.Name, ".log")
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
@@ -159,61 +129,59 @@ func cleanOldLogs(ctx context.Context) error {
 	return nil
 }
 
-// getGitHubFileContent 获取指定文件的完整内容和SHA
+// summarizeResults 根据抓取成功数、总数和问题信息, 生成日志字符串
 //
 // Description:
 //
-//	通过 GitHub API 获取远程文件的内容（base64 编码），然后进行解码，
-//	并同时获取其 SHA 值用于后续更新或删除操作
-//	如果文件不存在（404），则返回空内容、空SHA
+//	将本次抓取的结果进行简单的统计说明，包含解析失败数量、空RSS数量、
+//	头像缺失或不可用的数量等，并以字符串形式返回，便于写日志
 //
 // Parameters:
-//   - ctx   : 上下文
-//   - token : GitHub Token
-//   - owner : 仓库所有者
-//   - repo  : 仓库名
-//   - path  : 文件路径
+//   - successCount : 成功抓取的数量
+//   - total        : 总RSS链接数量
+//   - problems     : 各种问题的集合（parseFails, feedEmpties, noAvatar, brokenAvatar）
 //
 // Returns:
-//   - string: 文件的解码后内容
-//   - string: 文件的SHA
-//   - error : 若出现请求或解码错误，则返回
-func getGitHubFileContent(ctx context.Context, token, owner, repo, path string) (string, string, error) {
-	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
-	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-	if err != nil {
-		return "", "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
+//   - string: 整理好的日志数据
+func summarizeResults(successCount, total int, problems map[string][]string) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("本次订阅抓取结果统计:\n"))
+	sb.WriteString(fmt.Sprintf("共 %d 条RSS, 成功抓取 %d 条.\n", total, successCount))
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 404 {
-		// 文件不存在
-		return "", "", nil
-	}
-	if resp.StatusCode != 200 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return "", "", fmt.Errorf("failed to get file %s, status: %d, body: %s",
-			path, resp.StatusCode, string(bodyBytes))
+	parseFails := problems["parseFails"]
+	if len(parseFails) > 0 {
+		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅解析失败:\n", len(parseFails)))
+		for _, l := range parseFails {
+			sb.WriteString("  - " + l + "\n")
+		}
 	}
 
-	var response struct {
-		SHA     string `json:"sha"`
-		Content string `json:"content"`
-	}
-	if err = json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return "", "", err
+	feedEmpties := problems["feedEmpties"]
+	if len(feedEmpties) > 0 {
+		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅为空:\n", len(feedEmpties)))
+		for _, l := range feedEmpties {
+			sb.WriteString("  - " + l + "\n")
+		}
 	}
 
-	decoded, err := decodeBase64(response.Content)
-	if err != nil {
-		return "", "", err
+	noAvatarList := problems["noAvatar"]
+	if len(noAvatarList) > 0 {
+		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅头像字段为空, 已使用默认头像:\n", len(noAvatarList)))
+		for _, l := range noAvatarList {
+			sb.WriteString("  - " + l + "\n")
+		}
 	}
-	return decoded, response.SHA, nil
+
+	brokenAvatarList := problems["brokenAvatar"]
+	if len(brokenAvatarList) > 0 {
+		sb.WriteString(fmt.Sprintf("✘ 有 %d 条订阅头像无法访问, 已使用默认头像:\n", len(brokenAvatarList)))
+		for _, l := range brokenAvatarList {
+			sb.WriteString("  - " + l + "\n")
+		}
+	}
+
+	if len(parseFails) == 0 && len(feedEmpties) == 0 && len(noAvatarList) == 0 && len(brokenAvatarList) == 0 {
+		sb.WriteString("没有任何警告或错误, 一切正常\n")
+	}
+	return sb.String()
 }

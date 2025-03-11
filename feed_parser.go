@@ -93,10 +93,9 @@ func fetchBlogLogo(blogURL string) string {
 		return fallbackFavicon(blogURL)
 	}
 
-	var iconHref string
-	var ogImage string
+	var iconHref, ogImage string
 
-	// 定义一个匿名函数，用来递归遍历HTML节点
+	// 递归函数，用来遍历 HTML 节点，寻找 <link> 和 <meta> 标签
 	var f func(*html.Node)
 	f = func(n *html.Node) {
 		// 如果当前节点是元素节点
@@ -110,18 +109,16 @@ func fetchBlogLogo(blogURL string) string {
 				for _, attr := range n.Attr {
 					key := strings.ToLower(attr.Key)
 					val := attr.Val
-					switch key {
-					case "rel":
+					if key == "rel" {
 						relVal = strings.ToLower(val)
-					case "href":
+					}
+					if key == "href" {
 						hrefVal = val
 					}
 				}
 				// 如果 rel 包含 icon 字段，并且 href 不为空，则视为站点图标
-				if strings.Contains(relVal, "icon") && hrefVal != "" {
-					if iconHref == "" {
-						iconHref = hrefVal
-					}
+				if strings.Contains(relVal, "icon") && hrefVal != "" && iconHref == "" {
+					iconHref = hrefVal
 				}
 			} else if tagName == "meta" {
 				// 针对 <meta> 标签查找 og:image
@@ -129,10 +126,10 @@ func fetchBlogLogo(blogURL string) string {
 				for _, attr := range n.Attr {
 					key := strings.ToLower(attr.Key)
 					val := attr.Val
-					switch key {
-					case "property":
+					if key == "property" {
 						propVal = strings.ToLower(val)
-					case "content":
+					}
+					if key == "content" {
 						contentVal = val
 					}
 				}
@@ -164,8 +161,7 @@ func fetchBlogLogo(blogURL string) string {
 //
 // Description:
 //
-//	如果在博客主页中找不到任何可用的 icon，就使用此函数拼接 favicon.ico 路径
-//	如果 URL 解析有误，则返回空字符串
+//	如果在博客主页中找不到任何可用的 icon，就拼接 favicon.ico 路径
 func fallbackFavicon(blogURL string) string {
 	u, err := url.Parse(blogURL)
 	if err != nil {
@@ -213,5 +209,5 @@ func checkURLAvailable(urlStr string) (bool, error) {
 		return false, err
 	}
 	defer resp.Body.Close()
-	return (resp.StatusCode == http.StatusOK), nil
+	return resp.StatusCode == http.StatusOK, nil
 }

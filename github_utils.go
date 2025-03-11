@@ -16,23 +16,12 @@ import (
 	"strings"
 )
 
-// getGitHubFileSHA 获取指定仓库内某个路径文件的SHA,若文件不存在则返回空
+// getGitHubFileSHA 获取指定仓库内某个路径文件的SHA，若文件不存在则返回空
 //
 // Description:
 //
 //	通过 GitHub API 获取指定仓库中文件的 sha 值，用于后续更新或删除操作
 //	如果文件不存在，返回空字符串
-//
-// Parameters:
-//   - ctx   : 上下文，用于控制取消或超时
-//   - token : GitHub的访问令牌
-//   - owner : 仓库所有者用户名
-//   - repo  : 仓库名
-//   - path  : 仓库内文件的相对路径
-//
-// Returns:
-//   - string: 文件的SHA，如果文件不存在或出错可能为空
-//   - error : 如果请求过程中出现错误，返回错误；否则返回 nil
 func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (string, error) {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	req, err := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
@@ -74,19 +63,6 @@ func getGitHubFileSHA(ctx context.Context, token, owner, repo, path string) (str
 //
 //	该函数通过 GitHub API 调用来在指定仓库和分支里创建或更新文件
 //	当 sha 不为空时会执行更新逻辑，sha 为空时会执行创建逻辑
-//
-// Parameters:
-//   - ctx            : 上下文
-//   - token          : GitHub Token
-//   - owner, repo    : 仓库所有者 & 仓库名
-//   - path, sha      : 要更新或创建的文件路径，以及文件的旧SHA（可为空）
-//   - content        : 要写入的文件内容（原始文本，内部会进行Base64编码）
-//   - commitMsg      : 提交信息
-//   - committerName  : 提交者姓名
-//   - committerEmail : 提交者邮箱
-//
-// Returns:
-//   - error: 如果出现错误则返回，否则返回nil
 func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, commitMsg, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	encoded := base64.StdEncoding.EncodeToString([]byte(content))
@@ -139,17 +115,6 @@ func putGitHubFile(ctx context.Context, token, owner, repo, path, sha, content, 
 //
 //	调用 GitHub API 删除指定的文件，需要提供文件SHA
 //	该操作会在 main 分支上进行提交（删除操作算一次提交）
-//
-// Parameters:
-//   - ctx            : 上下文
-//   - token          : GitHub Token
-//   - owner, repo    : 仓库所有者 & 仓库名
-//   - path, sha      : 要删除的文件路径，以及文件的SHA
-//   - committerName  : 提交者姓名
-//   - committerEmail : 提交者邮箱
-//
-// Returns:
-//   - error: 若出现错误则返回；无错误返回nil
 func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, committerName, committerEmail string) error {
 	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 
@@ -178,7 +143,6 @@ func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, commit
 	}
 	defer resp.Body.Close()
 
-	// 删除成功返回200
 	if resp.StatusCode != 200 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("failed to delete file %s, status: %d, body: %s",
@@ -193,17 +157,6 @@ func deleteGitHubFile(ctx context.Context, token, owner, repo, path, sha, commit
 //
 //	调用 GitHub API 获取指定目录下的所有文件/子目录，返回它们的名字、SHA、类型等信息
 //	如果该目录不存在或为空，返回nil
-//
-// Parameters:
-//   - ctx   : 上下文
-//   - token : GitHub Token
-//   - owner : 仓库所有者
-//   - repo  : 仓库名
-//   - dir   : 目标目录路径
-//
-// Returns:
-//   - []struct{Name, SHA, Type}: 文件/目录信息列表
-//   - error                    : 请求或解析错误
 func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struct {
 	Name string `json:"name"`
 	SHA  string `json:"sha"`
@@ -246,17 +199,6 @@ func listGitHubDir(ctx context.Context, token, owner, repo, dir string) ([]struc
 }
 
 // decodeBase64 对Base64字符串进行解码,并返回解码后的文本
-//
-// Description:
-//
-//	该函数简单地对传入的 Base64 字符串进行解码，并返回解码后的字符串
-//
-// Parameters:
-//   - b64str: Base64 编码的字符串
-//
-// Returns:
-//   - string: 解码后的普通字符串
-//   - error : 如果解码失败则返回错误
 func decodeBase64(b64str string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(b64str)
 	if err != nil {
@@ -266,17 +208,6 @@ func decodeBase64(b64str string) (string, error) {
 }
 
 // uploadToGitHub 使用 GitHub API 将 data.json 覆盖上传到指定仓库路径
-//
-// Parameters:
-//   - ctx         : 上下文，用于在需要时取消操作
-//   - token       : GitHub 的访问令牌
-//   - owner       : 仓库所有者用户名
-//   - repo        : 仓库名
-//   - dataFilePath: data.json 在 GitHub 仓库中的完整路径(例如 "data/data.json")
-//   - data        : 要上传的 JSON 字节内容
-//
-// Returns:
-//   - error: 如果上传出现错误, 返回错误; 否则nil
 func uploadToGitHub(
 	ctx context.Context,
 	token string,
