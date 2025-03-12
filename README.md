@@ -9,9 +9,9 @@
   <img src="https://img.shields.io/github/issues/achuanya/lhasaRSS" alt="GitHub issues" />
 </div>
 
-lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预先设定的 RSS 源列表中并发抓取最新文章，自动提取博客名称、文章标题、发布时间、文章链接及头像等信息，并将数据按时间倒序存储到 JSON 文件中
+lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预先设定的 RSS 源列表中并发抓取最新文章，自动提取博客名称、文章标题、发布时间、文章链接及头像等信息，并将数据按时间倒序存储到 JSON 对象中
 
-随后上传至 Github 仓库亦或是腾讯云 COS 指定路径。同时，每次运行过程中的日志信息都会记录到 GitHub 仓库中（按日期生成独立日志文件），方便您随时查看和追溯历史记录
+随后上传至 Github 仓库亦或是腾讯云 COS。同时，每次运行过程中的日志信息都会记录到 GitHub 仓库中（按日期生成独立日志文件），方便您随时查看和追溯历史记录
 
 **效果展示**：[https://lhasa.icu/links.html](https://lhasa.icu/links.html)
 
@@ -26,10 +26,10 @@ lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预
   同时抓取各个 RSS 源，实时解析最新文章及相关信息
 
 - **异常情况记录**  
-  对解析失败、空 Feed、头像缺失等异常情况进行统计并记录，确保数据质量
+  对解析失败、空 Feed、头像缺失等异常情况进行统计并记录，确保异常报告一看可以看出来问题所在
 
 - **数据存储与上传**  
-  将抓取结果保存为 `data.json`，并自动上传至腾讯云 COS 或 GitHub 指定位置
+  将抓取结果保存为JSON对象，并自动上传至腾讯云 COS 或 GitHub
 
 - **日志记录与管理**  
   每次运行均会生成日志文件，并同步写入 GitHub，支持按日期分文件记录，并自动清理7天前的旧日志
@@ -46,10 +46,10 @@ lhasaRSS 是一款专注于 RSS 抓取与聚合的实用工具。它可以从预
 lhasaRSS
 ├── logs/            # 日志目录
 ├── data/
-│   ├── data.json    # 抓取后生成并上传的 JSON 文件 (可存放在 GitHub 或 COS)
-│   └── rss.txt      # RSS 订阅源文件 (可存放在 GitHub 或 COS)
+│   ├── data.json    # 抓取后生成 JSON 对象并上传到 GitHub 或 COS
+│   └── rss.txt      # RSS 订阅源文件 可存放在 GitHub 或 COS
 ├── config.go        # 环境变量的统一管理和校验
-├── cos_upload.go    # 利用腾讯云 COS SDK 上传 data.json
+├── cos_upload.go    # 利用腾讯云 COS SDK 上传 JSON 文件
 ├── feed_fetcher.go  # 核心抓取逻辑（支持并发、指数退避重试等）
 ├── feed_parser.go   # 辅助函数（RSS 时间解析、头像处理等）
 ├── github_utils.go  # GitHub 文件操作工具（创建、更新、删除等）
@@ -93,7 +93,7 @@ lhasaRSS 主要通过以下环境变量来进行配置：
 
 3.创建工作流文件
   
-  在仓库中点击 Actions > New workflow，新建一个 .yml 工作流文件，如 .github/workflows/rss_update.yml
+  在仓库中点击 Actions > New workflow，新建一个 .yml 工作流文件，如 .github/workflows/rss.yml
 
   示例 Workflow（定时任务，每 1 小时执行一次）：
   
@@ -148,7 +148,7 @@ jobs:
 
 1. 将所需的环境变量配置在仓库的 Settings > Secrets and variables > actions 中（以 secrets.TOKEN 等形式引用）
 
-2. 如果你想把抓取后的 data.json 放在 COS 上，则把 SAVE_TARGET 改为 COS 并提供 DATA 等环境变量
+2. 如果你想把抓取后的 JSON 文件放在 COS，则把 SAVE_TARGET 改为 COS 并提供 DATA 等环境变量
 
 提交后，GitHub Actions 会定时触发工作流，自动执行程序并上传RSS和日志，当然也可以手动调试
 
