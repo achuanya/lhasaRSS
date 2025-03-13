@@ -15,7 +15,7 @@ import (
 // main 程序入口
 //
 // Description:
-//  1. 加载并校验环境变量(SecretID, SecretKey, RSS, DATA, DEFAULT_AVATAR, RSS_SOURCE等)
+//  1. 加载并校验环境变量(SecretID, SecretKey, RSS, DATA, RSS_SOURCE等)
 //  2. 拉取RSS列表并并发抓取
 //  3. 将结果整合为 data.json 并根据 SAVE_TARGET 上传到GitHub或COS
 //  4. 写执行日志到GitHub
@@ -29,10 +29,6 @@ func main() {
 		// 这里可以将错误写入日志再退出
 		_ = appendLog(ctx, "[ERROR] "+err.Error())
 		return
-	}
-
-	if cfg.DefaultAvatar == "" {
-		_ = appendLog(ctx, "[WARN] 未设置 DEFAULT_AVATAR，将可能导致头像为空字符串")
 	}
 
 	// 拉取RSS列表
