@@ -35,6 +35,15 @@ type Config struct {
 	GitHubRepo  string // GitHub 仓库名
 }
 
+// envWithDefault 用于获取系统环境变量，若不存在则返回默认值
+func envWithDefault(key, def string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	return v
+}
+
 // LoadConfig 从系统环境变量中加载配置
 //
 // Description:
@@ -42,29 +51,36 @@ type Config struct {
 //	该函数仅做字符串读取，不做任何校验，后续可调用 cfg.Validate() 做集中校验
 //	新增环境变量 RSS_SOURCE 用于区分 RSS 列表使用 COS 还是本地文件
 func LoadConfig() *Config {
+
+	// 先将 RSS_SOURCE、SAVE_TARGET 统一转换为大写，方便后续判断
+	rssSource := strings.ToUpper(envWithDefault("RSS_SOURCE", "GITHUB"))
+	saveTarget := strings.ToUpper(envWithDefault("SAVE_TARGET", "GITHUB"))
+
+	// 分别处理 RssListURL 和 DataURL 默认值：只有在对应模式下才赋默认值
+	rssListURL := envWithDefault("RSS", "")
+	if rssSource == "GITHUB" && rssListURL == "" {
+		rssListURL = "data/rss.txt"
+	}
+
+	dataURL := envWithDefault("DATA", "")
+	if saveTarget == "GITHUB" && dataURL == "" {
+		dataURL = "data/data.json"
+	}
+
 	cfg := &Config{
 		TencentSecretID:  os.Getenv("TENCENT_CLOUD_SECRET_ID"),
 		TencentSecretKey: os.Getenv("TENCENT_CLOUD_SECRET_KEY"),
-		RssSource:        strings.ToUpper(os.Getenv("RSS_SOURCE")),
-		RssListURL:       os.Getenv("RSS"),
 
-		SaveTarget:    strings.ToUpper(os.Getenv("SAVE_TARGET")),
-		DataURL:       os.Getenv("DATA"),
-		DefaultAvatar: os.Getenv("DEFAULT_AVATAR"),
+		RssSource:  rssSource,
+		RssListURL: rssListURL,
+
+		SaveTarget:    saveTarget,
+		DataURL:       dataURL,
+		DefaultAvatar: envWithDefault("DEFAULT_AVATAR", "https://cn.gravatar.com/avatar"),
 
 		GitHubToken: os.Getenv("TOKEN"),
 		GitHubName:  os.Getenv("NAME"),
 		GitHubRepo:  os.Getenv("REPOSITORY"),
-	}
-
-	// 默认值处理
-	if cfg.RssSource == "" {
-		// 若未显式设置，则默认从 GITHUB 读取 RSS 列表
-		cfg.RssSource = "GITHUB"
-	}
-	if cfg.SaveTarget == "" {
-		// 若未显式设置，则默认保存到 GitHub
-		cfg.SaveTarget = "GITHUB"
 	}
 
 	return cfg
@@ -78,7 +94,7 @@ func LoadConfig() *Config {
 func (cfg *Config) Validate() error {
 	var missing []string
 
-	// 只有当 RSS_SOURCE 或 SAVE_TARGET 包含 "COS" 时，才需要腾讯云相关信息
+	// 当 RSS_SOURCE 或 SAVE_TARGET 需要使用 COS 时，需校验腾讯云配置
 	if cfg.RssSource == "COS" || cfg.SaveTarget == "COS" {
 		if cfg.TencentSecretID == "" {
 			missing = append(missing, "TENCENT_CLOUD_SECRET_ID")
@@ -88,17 +104,17 @@ func (cfg *Config) Validate() error {
 		}
 	}
 
-	// 当 RSS_SOURCE = COS 时，必须提供 RSS (即 RssListURL)
+	// RSS_SOURCE = COS 时需提供 RSS (RssListURL)
 	if cfg.RssSource == "COS" && cfg.RssListURL == "" {
 		missing = append(missing, "RSS")
 	}
 
-	// 当 SAVE_TARGET = COS 时，必须提供 DATA (即 DataURL)
+	// SAVE_TARGET = COS 时需提供 DATA (DataURL)
 	if cfg.SaveTarget == "COS" && cfg.DataURL == "" {
 		missing = append(missing, "DATA")
 	}
 
-	// 如果保存到 GITHUB，则必须有 GitHub API 配置
+	// 如果保存到 GITHUB，必须提供 GitHub 相关配置
 	if cfg.SaveTarget == "GITHUB" {
 		if cfg.GitHubToken == "" {
 			missing = append(missing, "TOKEN")
@@ -114,6 +130,5 @@ func (cfg *Config) Validate() error {
 	if len(missing) > 0 {
 		return fmt.Errorf("环境变量缺失: %v", missing)
 	}
-
 	return nil
 }
