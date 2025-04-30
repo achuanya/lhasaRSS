@@ -64,3 +64,10 @@
 [2025-04-30 10:18:33] - http://feeds.feedburner.com/ruanyifeng
 [2025-04-30 10:18:33] - https://www.loyhome.com/feed
 [2025-04-30 11:14:28] [ERROR] 拉取RSS链接失败: /home/runner/work/lhasaRSS/lhasaRSS/feed_fetcher.go:53 => 无法获取RSS列表文件: https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/lhasaRSS/rss.txt | 原因: Get "https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/lhasaRSS/rss.txt": net/http: TLS handshake timeout
+[2025-04-30 12:34:02] 本次订阅抓取结果统计:
+[2025-04-30 12:34:02] 共 28 条RSS, 成功抓取 27 条.
+[2025-04-30 12:34:02] ✘ 有 1 条订阅解析失败:
+[2025-04-30 12:34:02] - https://tcxx.info/feed
+[2025-04-30 12:34:02] ✘ 有 2 条订阅头像无法访问, 已使用默认头像:
+[2025-04-30 12:34:02] - http://feeds.feedburner.com/ruanyifeng
+[2025-04-30 12:34:02] - https://www.loyhome.com/feed
