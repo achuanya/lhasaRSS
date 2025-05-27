@@ -271,3 +271,18 @@
 [2025-05-27 19:36:29] - https://www.loyhome.com/feed
 [2025-05-27 19:36:29] - https://www.douban.com/feed/review/book
 [2025-05-27 19:45:07] 抓取到的文章与现有数据相同，无需更新。
+[2025-05-27 19:47:10] 本次订阅抓取结果统计:
+[2025-05-27 19:47:10] 共 47 条RSS, 成功抓取 38 条.
+[2025-05-27 19:47:10] ✘ 有 9 条订阅解析失败:
+[2025-05-27 19:47:10] - https://tcxx.info/feed
+[2025-05-27 19:47:10] - https://www.zhihu.com/rss
+[2025-05-27 19:47:10] - https://hwv430.blogspot.com/feeds/posts/default
+[2025-05-27 19:47:10] - http://feeds.kenengba.com/kenengbarss
+[2025-05-27 19:47:10] - http://feeds.feedburner.com/ruanyifeng
+[2025-05-27 19:47:10] - https://v2ex.com/index.xml
+[2025-05-27 19:47:10] - http://feeds.feedburner.com/zhihu-daily
+[2025-05-27 19:47:10] - https://rsshub.app/juejin/posts/1838039172387262
+[2025-05-27 19:47:10] - https://rsshub.app/t66y/7
+[2025-05-27 19:47:10] ✘ 有 2 条订阅头像无法访问, 已使用默认头像:
+[2025-05-27 19:47:10] - https://www.loyhome.com/feed
+[2025-05-27 19:47:10] - https://www.douban.com/feed/review/book
