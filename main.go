@@ -12,6 +12,80 @@ import (
 	"time"
 )
 
+// articleToKey generates a unique, comparable string key for an Article.
+// This key includes BlogName, Title, and Link. Published time is excluded as per requirements.
+func articleToKey(a Article) string {
+	return fmt.Sprintf("Blog:%s|Title:%s|Link:%s", a.BlogName, a.Title, a.Link)
+}
+
+// areArticlesIdentical checks if two slices of Article contain the same articles,
+// regardless of their order.
+func areArticlesIdentical(articles1, articles2 []Article) bool {
+	if len(articles1) != len(articles2) {
+		return false
+	}
+
+	map1 := make(map[string]int)
+	for _, article := range articles1 {
+		map1[articleToKey(article)]++
+	}
+
+	map2 := make(map[string]int)
+	for _, article := range articles2 {
+		map2[articleToKey(article)]++
+	}
+
+	if len(map1) != len(map2) { // Different number of unique articles
+		return false
+	}
+
+	for key, count1 := range map1 {
+		if count2, ok := map2[key]; !ok || count1 != count2 {
+			return false
+		}
+	}
+	return true
+}
+
+// getExistingData fetches and parses the existing data.json from GitHub or COS.
+// Returns an empty slice if the file doesn't exist or cannot be parsed.
+func getExistingData(ctx context.Context, cfg *Config) ([]Article, error) {
+	var rawData []byte
+	var err error
+
+	switch cfg.SaveTarget {
+	case "GITHUB":
+		content, _, getErr := getGitHubFileContent(ctx, cfg.GitHubToken, cfg.GitHubName, cfg.GitHubRepo, cfg.DataURL)
+		if getErr != nil {
+			return nil, wrapErrorf(getErr, "从 GitHub 获取旧 data.json 失败")
+		}
+		if content == "" { // File doesn't exist or is empty
+			return []Article{}, nil
+		}
+		rawData = []byte(content)
+	case "COS":
+		cosData, getErr := getCosFileContent(ctx, cfg.DataURL)
+		if getErr != nil {
+			return nil, wrapErrorf(getErr, "从 COS 获取旧 data.json 失败")
+		}
+		if cosData == nil { // File doesn't exist or is empty
+			return []Article{}, nil
+		}
+		rawData = cosData
+	default:
+		return nil, fmt.Errorf("SAVE_TARGET 值无效: %s (只能是 'GITHUB' 或 'COS')", cfg.SaveTarget)
+	}
+
+	var existingAllData AllData
+	if err = json.Unmarshal(rawData, &existingAllData); err != nil {
+		// If unmarshalling fails, it might be an old format or corrupted file.
+		// Treat as no existing valid data.
+		fmt.Printf("[WARN] 解析旧 data.json 失败: %v. 将视作无有效旧数据.\n", err)
+		return []Article{}, nil
+	}
+	return existingAllData.Items, nil
+}
+
 // main 程序入口
 //
 // Description:
@@ -67,14 +141,27 @@ func main() {
 	})
 
 	// 整理所有文章到一个切片
-	var allItems []Article
+	var newArticles []Article
 	for _, v := range itemsWithTime {
-		allItems = append(allItems, v.article)
+		newArticles = append(newArticles, v.article)
+	}
+
+	// 获取现有的数据进行比较
+	existingArticles, err := getExistingData(ctx, cfg)
+	if err != nil {
+		// 记录错误，但仍尝试继续，因为获取旧数据失败不应阻止新数据的保存
+		_ = appendLog(ctx, fmt.Sprintf("[ERROR] 获取旧数据用于比较时失败: %v", err))
+	}
+
+	if err == nil && areArticlesIdentical(newArticles, existingArticles) {
+		fmt.Println("抓取到的文章与现有数据相同，无需更新。")
+		_ = appendLog(ctx, "抓取到的文章与现有数据相同，无需更新。")
+		return // 停止执行
 	}
 
 	// 构造输出数据结构，并 JSON 序列化
 	allData := AllData{
-		Items:   allItems,
+		Items:   newArticles, // 使用 newArticles
 		Updated: time.Now().Format("2006年01月02日 15:04:05"),
 	}
 	jsonBytes, err := json.MarshalIndent(allData, "", "  ")

@@ -9,6 +9,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -46,4 +48,32 @@ func uploadToCos(ctx context.Context, secretID, secretKey, dataURL string, data 
 		return wrapErrorf(err, "上传至COS失败")
 	}
 	return nil
+}
+
+// getCosFileContent fetches the content of a file from a given HTTP URL (typically a COS URL).
+// Returns nil, nil if the file is not found (HTTP 404).
+func getCosFileContent(ctx context.Context, dataURL string) ([]byte, error) {
+	// Simpler version, matching fetchRSSLinksFromHTTP. Context is for consistency.
+	resp, err := http.Get(dataURL)
+	if err != nil {
+		return nil, wrapErrorf(err, "无法获取COS文件: %s", dataURL)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil // File not found, not an error for this function's purpose
+	}
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := io.ReadAll(resp.Body) // Read body for more detailed error
+		return nil, wrapErrorf(
+			fmt.Errorf("HTTP状态码: %d %s, Body: %s", resp.StatusCode, http.StatusText(resp.StatusCode), string(bodyBytes)),
+			"获取COS文件失败: %s", dataURL,
+		)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, wrapErrorf(err, "读取COS文件body失败")
+	}
+	return data, nil
 }
