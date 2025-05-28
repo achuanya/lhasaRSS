@@ -170,3 +170,13 @@
 [2025-05-28 14:00:11] - https://www.douban.com/feed/review/book
 [2025-05-28 15:00:08] 抓取到的文章与现有数据相同，无需更新。
 [2025-05-28 07:48:02] [ERROR] 上传 data.json 到 COS 失败: /home/runner/work/lhasaRSS/lhasaRSS/cos_upload.go:48 => 上传至COS失败 | 原因: PUT https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/lhasaRSS/data.json: 403 InvalidAccessKeyId(Message: The Access Key Id you provided does not exist in our records, RequestId: NjgzNmJmYjJfZDM2NjkwOV9mMDMwXzUyMTE1YWE=, TraceId: OGVmYzZiMmQzYjA2OWNhODk0NTRkMTBiOWVmMDAxODc0OWRkZjk0ZDM1NmI1M2E2MTRlY2MzZDhmNmI5MWI1OTQyYWVlY2QwZTk2MDVmZDQ3MmI2Y2I4ZmI5ZmM4ODFjMTcxNDY1MmNiMzgxYTQ4MjYxYjc1YmI2NGFiMDg5MTU=)
+[2025-05-28 07:55:43] 本次订阅抓取结果统计:
+[2025-05-28 07:55:43] 共 47 条RSS, 成功抓取 44 条.
+[2025-05-28 07:55:43] ✘ 有 3 条订阅解析失败:
+[2025-05-28 07:55:43] - https://tcxx.info/feed
+[2025-05-28 07:55:43] - https://www.zhihu.com/rss
+[2025-05-28 07:55:43] - https://rsshub.app/juejin/posts/1838039172387262
+[2025-05-28 07:55:43] ✘ 有 3 条订阅头像无法访问, 已使用默认头像:
+[2025-05-28 07:55:43] - http://feeds.feedburner.com/ruanyifeng
+[2025-05-28 07:55:43] - https://www.loyhome.com/feed
+[2025-05-28 07:55:43] - https://www.douban.com/feed/review/book
