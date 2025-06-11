@@ -40,3 +40,13 @@
 [2025-06-11 04:07:22] - https://www.loyhome.com/feed
 [2025-06-11 04:07:22] - https://www.douban.com/feed/review/book
 [2025-06-11 04:07:22] - https://feeds.appinn.com/appinns/
+[2025-06-11 05:02:52] 本次订阅抓取结果统计:
+[2025-06-11 05:02:52] 共 45 条RSS, 成功抓取 42 条.
+[2025-06-11 05:02:52] ✘ 有 3 条订阅解析失败:
+[2025-06-11 05:02:52] - https://tcxx.info/feed
+[2025-06-11 05:02:52] - https://www.douban.com/feed/review/book
+[2025-06-11 05:02:52] - https://diygod.cc/feed
+[2025-06-11 05:02:52] ✘ 有 3 条订阅头像无法访问, 已使用默认头像:
+[2025-06-11 05:02:52] - http://feeds.feedburner.com/ruanyifeng
+[2025-06-11 05:02:52] - https://www.loyhome.com/feed
+[2025-06-11 05:02:52] - https://feeds.appinn.com/appinns/
