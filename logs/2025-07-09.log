@@ -210,3 +210,15 @@
 [2025-07-09 18:02:01] - https://www.loyhome.com/feed
 [2025-07-09 18:02:01] - https://a4.zyzhang.com/index.xml
 [2025-07-09 18:02:01] - https://www.douban.com/feed/review/book
+[2025-07-09 19:02:12] 本次订阅抓取结果统计:
+[2025-07-09 19:02:12] 共 49 条RSS, 成功抓取 47 条.
+[2025-07-09 19:02:12] ✘ 有 2 条订阅解析失败:
+[2025-07-09 19:02:12] - https://blog.fooleap.org/atom.xml
+[2025-07-09 19:02:12] - https://tcxx.info/feed
+[2025-07-09 19:02:12] ✘ 有 6 条订阅头像无法访问, 已使用默认头像:
+[2025-07-09 19:02:12] - https://www.shephe.com/feed
+[2025-07-09 19:02:12] - http://feeds.feedburner.com/ruanyifeng
+[2025-07-09 19:02:12] - https://www.loyhome.com/feed
+[2025-07-09 19:02:12] - https://a4.zyzhang.com/index.xml
+[2025-07-09 19:02:12] - https://www.douban.com/feed/review/book
+[2025-07-09 19:02:12] - https://feeds.appinn.com/appinns/
