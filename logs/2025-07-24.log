@@ -49,3 +49,15 @@
 [2025-07-24 04:14:30] - https://feeds.appinn.com/appinns/
 [2025-07-24 05:05:37] 抓取到的文章与现有数据相同，无需更新。
 [2025-07-24 06:02:05] 抓取到的文章与现有数据相同，无需更新。
+[2025-07-24 07:03:39] 本次订阅抓取结果统计:
+[2025-07-24 07:03:39] 共 51 条RSS, 成功抓取 49 条.
+[2025-07-24 07:03:39] ✘ 有 2 条订阅解析失败:
+[2025-07-24 07:03:39] - https://tcxx.info/feed
+[2025-07-24 07:03:39] - https://yinwang1.substack.com/feed
+[2025-07-24 07:03:39] ✘ 有 6 条订阅头像无法访问, 已使用默认头像:
+[2025-07-24 07:03:39] - http://feeds.feedburner.com/ruanyifeng
+[2025-07-24 07:03:39] - https://www.loyhome.com/feed
+[2025-07-24 07:03:39] - https://a4.zyzhang.com/index.xml
+[2025-07-24 07:03:39] - https://www.geedea.pro/index.xml
+[2025-07-24 07:03:39] - https://www.douban.com/feed/review/book
+[2025-07-24 07:03:39] - https://feeds.appinn.com/appinns/
