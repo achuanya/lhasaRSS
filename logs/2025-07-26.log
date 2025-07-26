@@ -84,3 +84,15 @@
 [2025-07-26 15:01:51] - https://www.geedea.pro/index.xml
 [2025-07-26 15:01:51] - https://www.douban.com/feed/review/book
 [2025-07-26 16:02:01] 抓取到的文章与现有数据相同，无需更新。
+[2025-07-26 17:01:44] 本次订阅抓取结果统计:
+[2025-07-26 17:01:44] 共 51 条RSS, 成功抓取 48 条.
+[2025-07-26 17:01:44] ✘ 有 3 条订阅解析失败:
+[2025-07-26 17:01:44] - https://tcxx.info/feed
+[2025-07-26 17:01:44] - https://blog.ops-coffee.cn/feed.xml
+[2025-07-26 17:01:44] - https://yinwang1.substack.com/feed
+[2025-07-26 17:01:44] ✘ 有 5 条订阅头像无法访问, 已使用默认头像:
+[2025-07-26 17:01:44] - http://feeds.feedburner.com/ruanyifeng
+[2025-07-26 17:01:44] - https://www.loyhome.com/feed
+[2025-07-26 17:01:44] - https://a4.zyzhang.com/index.xml
+[2025-07-26 17:01:44] - https://www.geedea.pro/index.xml
+[2025-07-26 17:01:44] - https://www.douban.com/feed/review/book
