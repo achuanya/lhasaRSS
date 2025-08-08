@@ -144,3 +144,17 @@
 [2025-08-08 17:02:10] 抓取到的文章与现有数据相同，无需更新。
 [2025-08-08 18:02:16] 抓取到的文章与现有数据相同，无需更新。
 [2025-08-08 19:02:17] 抓取到的文章与现有数据相同，无需更新。
+[2025-08-08 20:01:39] 本次订阅抓取结果统计:
+[2025-08-08 20:01:39] 共 51 条RSS, 成功抓取 47 条.
+[2025-08-08 20:01:39] ✘ 有 4 条订阅解析失败:
+[2025-08-08 20:01:39] - https://tumutanzi.com/feed
+[2025-08-08 20:01:39] - https://tcxx.info/feed
+[2025-08-08 20:01:39] - https://www.williamlong.info/rss.xml
+[2025-08-08 20:01:39] - https://yinwang1.substack.com/feed
+[2025-08-08 20:01:39] ✘ 有 6 条订阅头像无法访问, 已使用默认头像:
+[2025-08-08 20:01:39] - http://feeds.feedburner.com/ruanyifeng
+[2025-08-08 20:01:39] - https://www.loyhome.com/feed
+[2025-08-08 20:01:39] - https://a4.zyzhang.com/index.xml
+[2025-08-08 20:01:39] - https://www.geedea.pro/index.xml
+[2025-08-08 20:01:39] - https://www.douban.com/feed/review/book
+[2025-08-08 20:01:39] - https://feeds.appinn.com/appinns/
