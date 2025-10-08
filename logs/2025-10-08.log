@@ -133,3 +133,4 @@
 [2025-10-08 11:01:55] - https://laike9m.com/blog/rss/
 [2025-10-08 11:01:55] - https://www.douban.com/feed/review/book
 [2025-10-08 11:01:55] - https://www.mrhe.net/feed
+[2025-10-08 12:02:14] [ERROR] 拉取RSS链接失败: /home/runner/work/lhasaRSS/lhasaRSS/feed_fetcher.go:53 => 无法获取RSS列表文件: https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/lhasaRSS/rss.txt | 原因: Get "https://lhasa-1253887673.cos.ap-shanghai.myqcloud.com/lhasaRSS/rss.txt": net/http: TLS handshake timeout
