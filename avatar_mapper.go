@@ -18,7 +18,7 @@ type AvatarMapping struct {
 
 // AvatarMapData 表示整个avatar.json文件的数据结构
 type AvatarMapData struct {
-	Data []AvatarMapping `json:"data"`
+	Items []AvatarMapping `json:"items"`
 }
 
 // AvatarMapper 头像映射器
@@ -72,13 +72,15 @@ func (am *AvatarMapper) LoadAvatarMap() error {
 
 	// 构建域名到头像的映射
 	am.avatarMap = make(map[string]string)
-	for _, mapping := range avatarData.Data {
+	for _, mapping := range avatarData.Items {
 		domain := am.extractDomain(mapping.Link)
 		if domain != "" {
 			am.avatarMap[domain] = mapping.Avatar
+			fmt.Printf("[DEBUG] 添加头像映射: %s -> %s\n", domain, mapping.Avatar)
 		}
 	}
 
+	fmt.Printf("[INFO] 成功加载 %d 个头像映射\n", len(am.avatarMap))
 	return nil
 }
 
@@ -111,7 +113,11 @@ func (am *AvatarMapper) GetAvatarByURL(urlStr string) (string, bool) {
 	if domain == "" {
 		return "", false
 	}
-	return am.GetAvatarByDomain(domain)
+	avatar, found := am.GetAvatarByDomain(domain)
+	if found {
+		fmt.Printf("[DEBUG] 找到头像映射: %s (%s) -> %s\n", urlStr, domain, avatar)
+	}
+	return avatar, found
 }
 
 // GetMappingCount 获取映射数量
