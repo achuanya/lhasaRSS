@@ -16,7 +16,7 @@ import (
 type Article struct {
 	BlogName  string `json:"blog_name"` // 博客名称
 	Title     string `json:"title"`     // 文章标题
-	Published string `json:"published"` // 文章发布时间 (已格式化，如 "09 Mar 2025")
+	Published string `json:"published"` // 文章发布时间 (已格式化，如 "Mar 09, 2025")
 	Link      string `json:"link"`      // 文章链接
 	Avatar    string `json:"avatar"`    // 博客头像
 }

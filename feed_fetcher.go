@@ -187,9 +187,9 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string)
 					pubTime = t
 				}
 			}
-			// 把解析出的时间，格式化为 "02 Jan 2006" 记录下来
+			// 把解析出的时间，格式化为 "Jan 02, 2006" 记录下来
 			fr.ParsedTime = pubTime
-			fr.Article.Published = pubTime.Format("02 Jan 2006")
+			fr.Article.Published = pubTime.Format("Jan 02, 2006")
 
 			resultChan <- fr
 		}(link)
