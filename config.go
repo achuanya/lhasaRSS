@@ -28,6 +28,7 @@ type Config struct {
 	SaveTarget    string
 	DataURL       string // data.json 在COS或GitHub的完整路径
 	DefaultAvatar string // 默认头像URL
+	AvatarMapURL  string // 头像映射JSON文件的URL
 
 	// GitHub 相关
 	GitHubToken string // GitHub Token
@@ -77,6 +78,7 @@ func LoadConfig() *Config {
 		SaveTarget:    saveTarget,
 		DataURL:       dataURL,
 		DefaultAvatar: envWithDefault("DEFAULT_AVATAR", "https://cn.gravatar.com/avatar"),
+		AvatarMapURL:  envWithDefault("AVATAR_MAP_URL", "https://cos.lhasa.icu/lhasaRSS/avatar.json"),
 
 		GitHubToken: os.Getenv("TOKEN"),
 		GitHubName:  os.Getenv("NAME"),

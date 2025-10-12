@@ -116,8 +116,15 @@ func main() {
 		return
 	}
 
+	// 创建并加载头像映射器
+	avatarMapper := NewAvatarMapper(cfg)
+	if err := avatarMapper.LoadAvatarMap(); err != nil {
+		_ = appendLog(ctx, fmt.Sprintf("[WARN] 加载头像映射失败: %v", err))
+		// 继续执行，不阻止程序运行
+	}
+
 	// 并发抓取所有RSS，获取结果和问题统计
-	results, problems := fetchAllFeeds(ctx, rssLinks, cfg.DefaultAvatar)
+	results, problems := fetchAllFeeds(ctx, rssLinks, cfg.DefaultAvatar, avatarMapper)
 
 	// 提取成功抓取的项，并做按发布时间的倒序排序
 	var itemsWithTime []struct {
