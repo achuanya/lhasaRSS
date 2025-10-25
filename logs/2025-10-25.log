@@ -60,3 +60,4 @@
 [2025-10-25 10:01:56] 抓取到的文章与现有数据相同，无需更新。
 [2025-10-25 11:01:53] 抓取到的文章与现有数据相同，无需更新。
 [2025-10-25 12:02:05] 抓取到的文章与现有数据相同，无需更新。
+[2025-10-25 13:06:06] [WARN] 加载头像映射失败: failed to fetch avatar map: Get "https://cos.lhasa.icu/lhasaRSS/avatar.json": dial tcp: lookup cos.lhasa.icu on 127.0.0.53:53: no such host
