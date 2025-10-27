@@ -128,3 +128,20 @@
 [2025-10-27 09:02:16] - http://feeds.feedburner.com/ruanyifeng
 [2025-10-27 09:02:16] - https://skywind.me/blog/feed
 [2025-10-27 09:02:16] - https://www.douban.com/feed/review/book
+[2025-10-27 10:02:21] 本次订阅抓取结果统计:
+[2025-10-27 10:02:21] 共 63 条RSS, 成功抓取 56 条.
+[2025-10-27 10:02:21] ✘ 有 6 条订阅解析失败:
+[2025-10-27 10:02:21] - https://tcxx.info/feed
+[2025-10-27 10:02:21] - https://tumutanzi.com/feed
+[2025-10-27 10:02:21] - https://suus.me/index.xml
+[2025-10-27 10:02:21] - https://geekinney.com/index.xml
+[2025-10-27 10:02:21] - https://yinwang1.substack.com/feed
+[2025-10-27 10:02:21] - https://botanwang.com/rss.xml
+[2025-10-27 10:02:21] ✘ 有 1 条订阅为空:
+[2025-10-27 10:02:21] - http://feeds.feedburner.com/zhihu-daily
+[2025-10-27 10:02:21] ✘ 有 1 条订阅头像字段为空, 已使用默认头像:
+[2025-10-27 10:02:21] - https://feed.cnblogs.com/blog/u/66551/rss/
+[2025-10-27 10:02:21] ✘ 有 3 条订阅头像无法访问, 已使用默认头像:
+[2025-10-27 10:02:21] - http://feeds.feedburner.com/ruanyifeng
+[2025-10-27 10:02:21] - https://skywind.me/blog/feed
+[2025-10-27 10:02:21] - https://www.douban.com/feed/review/book
