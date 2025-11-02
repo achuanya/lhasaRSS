@@ -111,3 +111,4 @@
 [2025-11-02 16:02:03] - http://feeds.feedburner.com/ruanyifeng
 [2025-11-02 16:02:03] - https://skywind.me/blog/feed
 [2025-11-02 16:02:03] - https://www.douban.com/feed/review/book
+[2025-11-02 17:02:07] [WARN] 加载头像映射失败: failed to fetch avatar map: Get "https://cos.lhasa.icu/lhasaRSS/avatar.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
