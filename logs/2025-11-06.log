@@ -52,3 +52,27 @@
 [2025-11-06 04:04:54] - https://skywind.me/blog/feed
 [2025-11-06 04:04:54] - https://www.douban.com/feed/review/book
 [2025-11-06 05:02:04] [WARN] 加载头像映射失败: failed to fetch avatar map: Get "https://cos.lhasa.icu/lhasaRSS/avatar.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+[2025-11-06 05:03:13] 本次订阅抓取结果统计:
+[2025-11-06 05:03:13] 共 63 条RSS, 成功抓取 52 条.
+[2025-11-06 05:03:13] ✘ 有 10 条订阅解析失败:
+[2025-11-06 05:03:13] - https://tcxx.info/feed
+[2025-11-06 05:03:13] - https://tumutanzi.com/feed
+[2025-11-06 05:03:13] - https://geekinney.com/index.xml
+[2025-11-06 05:03:13] - https://suus.me/index.xml
+[2025-11-06 05:03:13] - https://yinwang1.substack.com/feed
+[2025-11-06 05:03:13] - https://botanwang.com/rss.xml
+[2025-11-06 05:03:13] - https://xyzbz.cn/feed
+[2025-11-06 05:03:13] - https://oba.by/feed
+[2025-11-06 05:03:13] - https://www.douban.com/feed/review/book
+[2025-11-06 05:03:13] - https://www.laomuzhu.cn/feed/
+[2025-11-06 05:03:13] ✘ 有 1 条订阅为空:
+[2025-11-06 05:03:13] - http://feeds.feedburner.com/zhihu-daily
+[2025-11-06 05:03:13] ✘ 有 1 条订阅头像字段为空, 已使用默认头像:
+[2025-11-06 05:03:13] - https://feed.cnblogs.com/blog/u/66551/rss/
+[2025-11-06 05:03:13] ✘ 有 6 条订阅头像无法访问, 已使用默认头像:
+[2025-11-06 05:03:13] - http://feeds.feedburner.com/ruanyifeng
+[2025-11-06 05:03:13] - https://www.loyhome.com/feed
+[2025-11-06 05:03:13] - https://a4.zyzhang.com/index.xml
+[2025-11-06 05:03:13] - https://skywind.me/blog/feed
+[2025-11-06 05:03:13] - https://laike9m.com/blog/rss/
+[2025-11-06 05:03:13] - https://www.mrhe.net/feed
