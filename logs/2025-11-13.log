@@ -153,3 +153,4 @@
 [2025-11-13 12:02:25] - https://skywind.me/blog/feed
 [2025-11-13 12:02:25] - https://www.douban.com/feed/review/book
 [2025-11-13 13:11:53] 抓取到的文章与现有数据相同，无需更新。
+[2025-11-13 14:02:02] [WARN] 加载头像映射失败: failed to fetch avatar map: Get "https://cos.lhasa.icu/lhasaRSS/avatar.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
