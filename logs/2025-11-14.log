@@ -169,3 +169,4 @@
 [2025-11-14 13:10:51] ✘ 有 2 条订阅头像无法访问, 已使用默认头像:
 [2025-11-14 13:10:51] - http://feeds.feedburner.com/ruanyifeng
 [2025-11-14 13:10:51] - https://skywind.me/blog/feed
+[2025-11-14 14:02:04] [WARN] 加载头像映射失败: failed to fetch avatar map: Get "https://cos.lhasa.icu/lhasaRSS/avatar.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
