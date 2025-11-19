@@ -57,3 +57,19 @@
 [2025-11-19 08:02:37] - https://skywind.me/blog/feed
 [2025-11-19 09:02:41] 抓取到的文章与现有数据相同，无需更新。
 [2025-11-19 10:02:43] 抓取到的文章与现有数据相同，无需更新。
+[2025-11-19 11:01:54] 本次订阅抓取结果统计:
+[2025-11-19 11:01:54] 共 60 条RSS, 成功抓取 54 条.
+[2025-11-19 11:01:54] ✘ 有 5 条订阅解析失败:
+[2025-11-19 11:01:54] - https://tumutanzi.com/feed
+[2025-11-19 11:01:54] - https://tcxx.info/feed
+[2025-11-19 11:01:54] - https://geekinney.com/index.xml
+[2025-11-19 11:01:54] - https://suus.me/atom.xml
+[2025-11-19 11:01:54] - https://botanwang.com/rss.xml
+[2025-11-19 11:01:54] ✘ 有 1 条订阅为空:
+[2025-11-19 11:01:54] - http://feeds.feedburner.com/zhihu-daily
+[2025-11-19 11:01:54] ✘ 有 1 条订阅头像字段为空, 已使用默认头像:
+[2025-11-19 11:01:54] - https://feed.cnblogs.com/blog/u/66551/rss/
+[2025-11-19 11:01:54] ✘ 有 3 条订阅头像无法访问, 已使用默认头像:
+[2025-11-19 11:01:54] - http://feeds.feedburner.com/ruanyifeng
+[2025-11-19 11:01:54] - https://wangpei.net/comments/feed/
+[2025-11-19 11:01:54] - https://skywind.me/blog/feed
