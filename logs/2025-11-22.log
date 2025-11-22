@@ -29,3 +29,4 @@
 [2025-11-22 13:03:24] ✘ 有 1 条订阅为空:
 [2025-11-22 13:03:24] - http://feeds.feedburner.com/zhihu-daily
 [2025-11-22 13:06:22] [WARN] 加载头像映射失败: failed to parse avatar map JSON: unexpected end of JSON input
+[2025-11-22 13:06:29] 抓取到的文章与现有数据相同，无需更新。
