@@ -12,8 +12,9 @@ import (
 
 // AvatarMapping 表示头像映射的数据结构
 type AvatarMapping struct {
-	Link   string `json:"link"`
-	Avatar string `json:"avatar"`
+    Link   string `json:"link"`
+    Avatar string `json:"avatar"`
+    Name   string `json:"name"`
 }
 
 // AvatarMapData 表示整个avatar.json文件的数据结构
@@ -23,16 +24,18 @@ type AvatarMapData struct {
 
 // AvatarMapper 头像映射器
 type AvatarMapper struct {
-	avatarMap map[string]string // 域名到头像URL的映射
-	config    *Config
+    avatarMap map[string]string
+    nameMap   map[string]string
+    config    *Config
 }
 
 // NewAvatarMapper 创建新的头像映射器
 func NewAvatarMapper(config *Config) *AvatarMapper {
-	return &AvatarMapper{
-		avatarMap: make(map[string]string),
-		config:    config,
-	}
+    return &AvatarMapper{
+        avatarMap: make(map[string]string),
+        nameMap:   make(map[string]string),
+        config:    config,
+    }
 }
 
 // LoadAvatarMap 从远程URL加载头像映射数据
@@ -71,14 +74,19 @@ func (am *AvatarMapper) LoadAvatarMap() error {
 	}
 
 	// 构建域名到头像的映射
-	am.avatarMap = make(map[string]string)
-	for _, mapping := range avatarData.Items {
-		domain := am.extractDomain(mapping.Link)
-		if domain != "" {
-			am.avatarMap[domain] = mapping.Avatar
-			fmt.Printf("[DEBUG] 添加头像映射: %s -> %s\n", domain, mapping.Avatar)
-		}
-	}
+    am.avatarMap = make(map[string]string)
+    am.nameMap = make(map[string]string)
+    for _, mapping := range avatarData.Items {
+        domain := am.extractDomain(mapping.Link)
+        if domain != "" {
+            am.avatarMap[domain] = mapping.Avatar
+            fmt.Printf("[DEBUG] 添加头像映射: %s -> %s\n", domain, mapping.Avatar)
+            if mapping.Name != "" {
+                am.nameMap[domain] = mapping.Name
+                fmt.Printf("[DEBUG] 添加名称映射: %s -> %s\n", domain, mapping.Name)
+            }
+        }
+    }
 
 	fmt.Printf("[INFO] 成功加载 %d 个头像映射\n", len(am.avatarMap))
 	return nil
@@ -102,22 +110,40 @@ func (am *AvatarMapper) extractDomain(urlStr string) string {
 
 // GetAvatarByDomain 根据域名获取对应的头像URL
 func (am *AvatarMapper) GetAvatarByDomain(domain string) (string, bool) {
-	domain = strings.ToLower(domain)
-	avatar, exists := am.avatarMap[domain]
-	return avatar, exists
+    domain = strings.ToLower(domain)
+    avatar, exists := am.avatarMap[domain]
+    return avatar, exists
 }
 
 // GetAvatarByURL 根据URL获取对应的头像URL
 func (am *AvatarMapper) GetAvatarByURL(urlStr string) (string, bool) {
-	domain := am.extractDomain(urlStr)
-	if domain == "" {
-		return "", false
-	}
-	avatar, found := am.GetAvatarByDomain(domain)
-	if found {
-		fmt.Printf("[DEBUG] 找到头像映射: %s (%s) -> %s\n", urlStr, domain, avatar)
-	}
-	return avatar, found
+    domain := am.extractDomain(urlStr)
+    if domain == "" {
+        return "", false
+    }
+    avatar, found := am.GetAvatarByDomain(domain)
+    if found {
+        fmt.Printf("[DEBUG] 找到头像映射: %s (%s) -> %s\n", urlStr, domain, avatar)
+    }
+    return avatar, found
+}
+
+func (am *AvatarMapper) GetNameByDomain(domain string) (string, bool) {
+    domain = strings.ToLower(domain)
+    name, exists := am.nameMap[domain]
+    return name, exists
+}
+
+func (am *AvatarMapper) GetNameByURL(urlStr string) (string, bool) {
+    domain := am.extractDomain(urlStr)
+    if domain == "" {
+        return "", false
+    }
+    name, found := am.GetNameByDomain(domain)
+    if found {
+        fmt.Printf("[DEBUG] 找到名称映射: %s (%s) -> %s\n", urlStr, domain, name)
+    }
+    return name, found
 }
 
 // GetMappingCount 获取映射数量

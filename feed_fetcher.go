@@ -229,11 +229,14 @@ func fetchAllFeeds(ctx context.Context, rssLinks []string, defaultAvatar string,
 
 		// 对于成功抓取的Feed，如果头像为空或不可用则使用默认头像
 		// 首先尝试使用AvatarMapper进行域名匹配替换
-		if avatarMapper != nil {
-			if mappedAvatar, found := avatarMapper.GetAvatarByURL(r.FeedLink); found {
-				r.Article.Avatar = mappedAvatar
-			}
-		}
+        if avatarMapper != nil {
+            if mappedAvatar, found := avatarMapper.GetAvatarByURL(r.FeedLink); found {
+                r.Article.Avatar = mappedAvatar
+            }
+            if mappedName, found := avatarMapper.GetNameByURL(r.FeedLink); found {
+                r.Article.BlogName = mappedName
+            }
+        }
 
 		if r.Article.Avatar == "" {
 			problems["noAvatar"] = append(problems["noAvatar"], r.FeedLink)
