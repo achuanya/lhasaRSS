@@ -90,3 +90,11 @@
 [2025-11-24 21:15:52] - https://skywind.me/blog/feed
 [2025-11-24 21:15:52] - https://www.mrhe.net/feed
 [2025-11-24 21:15:52] - https://byvoid.com/zhs/feed.xml
+[2025-11-24 21:25:37] 本次订阅抓取结果统计:
+[2025-11-24 21:25:37] 共 32 条RSS, 成功抓取 28 条.
+[2025-11-24 21:25:37] ✘ 有 3 条订阅解析失败:
+[2025-11-24 21:25:37] - https://tumutanzi.com/feed
+[2025-11-24 21:25:37] - https://geekinney.com/index.xml
+[2025-11-24 21:25:37] - https://suus.me/atom.xml
+[2025-11-24 21:25:37] ✘ 有 1 条订阅为空:
+[2025-11-24 21:25:37] - http://feeds.feedburner.com/zhihu-daily
