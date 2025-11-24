@@ -72,3 +72,21 @@
 [2025-11-24 21:01:52] ✘ 有 1 条订阅为空:
 [2025-11-24 21:01:52] - http://feeds.feedburner.com/zhihu-daily
 [2025-11-24 21:14:51] [WARN] 加载头像映射失败: failed to fetch avatar map: Get "https://cos.lhasa.icu/lhasaRSS/avatar.json": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+[2025-11-24 21:15:52] 本次订阅抓取结果统计:
+[2025-11-24 21:15:52] 共 32 条RSS, 成功抓取 23 条.
+[2025-11-24 21:15:52] ✘ 有 8 条订阅解析失败:
+[2025-11-24 21:15:52] - https://tumutanzi.com/feed
+[2025-11-24 21:15:52] - https://geekinney.com/index.xml
+[2025-11-24 21:15:52] - https://suus.me/atom.xml
+[2025-11-24 21:15:52] - https://xyzbz.cn/feed
+[2025-11-24 21:15:52] - https://oba.by/feed
+[2025-11-24 21:15:52] - https://www.laomuzhu.cn/feed/
+[2025-11-24 21:15:52] - https://www.moraex.com/feed
+[2025-11-24 21:15:52] - https://bluehe.cn/rss.xml
+[2025-11-24 21:15:52] ✘ 有 1 条订阅为空:
+[2025-11-24 21:15:52] - http://feeds.feedburner.com/zhihu-daily
+[2025-11-24 21:15:52] ✘ 有 4 条订阅头像无法访问, 已使用默认头像:
+[2025-11-24 21:15:52] - https://laike9m.com/blog/rss/
+[2025-11-24 21:15:52] - https://skywind.me/blog/feed
+[2025-11-24 21:15:52] - https://www.mrhe.net/feed
+[2025-11-24 21:15:52] - https://byvoid.com/zhs/feed.xml
